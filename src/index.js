@@ -27,14 +27,8 @@ async function sendNewsItem(
   item,
   message
 ) {
-
-  /*
-   * اول ویدئو
-   */
   if (item.videoUrl) {
-
     try {
-
       await sendVideo(
         item.videoUrl,
         message
@@ -45,50 +39,35 @@ async function sendNewsItem(
       );
 
       return 'video';
-
     } catch (error) {
-
       console.error(
-        '⚠️ ارسال ویدئو ناموفق:',
+        '⚠️ ویدئو ارسال نشد:',
         error.message
       );
     }
   }
 
-  /*
-   * سپس عکس
-   */
   if (item.imageUrl) {
-
     try {
-
       await sendPhoto(
         item.imageUrl,
         message
       );
 
       console.log(
-        '🖼️ عکس ارسال شد.'
+        '🖼️ تصویر ارسال شد.'
       );
 
       return 'photo';
-
     } catch (error) {
-
       console.error(
-        '⚠️ ارسال عکس ناموفق:',
+        '⚠️ تصویر ارسال نشد:',
         error.message
       );
     }
   }
 
-  /*
-   * در صورت نبود رسانه،
-   * متن ارسال می‌شود.
-   */
-  await sendMessage(
-    message
-  );
+  await sendMessage(message);
 
   console.log(
     '📝 متن خبر ارسال شد.'
@@ -98,7 +77,6 @@ async function sendNewsItem(
 }
 
 async function main() {
-
   console.log(
     '================================'
   );
@@ -125,8 +103,7 @@ async function main() {
     `تعداد اخبار دریافت‌شده: ${news.length}`
   );
 
-  if (news.length === 0) {
-
+  if (!news.length) {
     console.log(
       'هیچ خبر جدید و واجد شرایطی دریافت نشد.'
     );
@@ -139,9 +116,7 @@ async function main() {
   let errors = 0;
 
   for (const item of news) {
-
     try {
-
       const id =
         item.id ||
         item.link;
@@ -151,11 +126,10 @@ async function main() {
       }
 
       if (hasNews(id)) {
-
         skipped++;
 
         console.log(
-          `⏭️ خبر تکراری: ${item.title}`
+          `⏭️ تکراری: ${item.title}`
         );
 
         continue;
@@ -166,9 +140,7 @@ async function main() {
           item,
           {
             timezone:
-              config.timezone,
-            maxDescriptionLength:
-              650
+              config.timezone
           }
         );
 
@@ -184,15 +156,23 @@ async function main() {
         `📰 ${item.title}`
       );
 
+      console.log(
+        `🔗 ${item.link || '-'}`
+      );
+
+      console.log(
+        `🕐 ${item.publishedAt || '-'}`
+      );
+
       if (item.imageUrl) {
         console.log(
-          `🖼️ تصویر: ${item.imageUrl}`
+          `🖼️ ${item.imageUrl}`
         );
       }
 
       if (item.videoUrl) {
         console.log(
-          `🎥 ویدئو: ${item.videoUrl}`
+          `🎥 ${item.videoUrl}`
         );
       }
 
@@ -207,7 +187,7 @@ async function main() {
       sent++;
 
       console.log(
-        `✅ ارسال موفق (${type}): ${item.title}`
+        `✅ ارسال موفق (${type})`
       );
 
       await new Promise(
@@ -217,15 +197,12 @@ async function main() {
             1500
           )
       );
-
     } catch (error) {
-
       errors++;
 
       console.error(
-        `❌ خطا در ارسال: ${
-          item.title ||
-          'بدون عنوان'
+        `❌ خطا در خبر: ${
+          item.title || 'بدون عنوان'
         }`
       );
 
@@ -236,23 +213,24 @@ async function main() {
     }
   }
 
-  console.log('');
   console.log(
     '================================'
   );
+
   console.log(
     'گزارش نهایی'
   );
+
   console.log(
     '================================'
   );
 
   console.log(
-    `اخبار دریافت‌شده: ${news.length}`
+    `دریافت: ${news.length}`
   );
 
   console.log(
-    `ارسال موفق: ${sent}`
+    `ارسال: ${sent}`
   );
 
   console.log(
@@ -268,18 +246,15 @@ async function main() {
   );
 }
 
-main().catch(
-  error => {
+main().catch(error => {
+  console.error(
+    'FATAL ERROR:'
+  );
 
-    console.error(
-      'FATAL ERROR:'
-    );
+  console.error(
+    error.stack ||
+    error.message
+  );
 
-    console.error(
-      error.stack ||
-      error.message
-    );
-
-    process.exit(1);
-  }
-);
+  process.exit(1);
+});
