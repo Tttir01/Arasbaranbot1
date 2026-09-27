@@ -11,7 +11,7 @@ const CONFIG = getConfig();
 const parser = new Parser({
   timeout: CONFIG.news.requestTimeout,
   headers: {
-    'User-Agent': 'Mozilla/5.0 ArasbaranNewsBot/3.0'
+    'User-Agent': 'Mozilla/5.0 ArasbaranNewsBot/3.2'
   }
 });
 
@@ -29,9 +29,6 @@ const LOCAL_AREAS = [
   'ارسباران'
 ];
 
-/*
- * منابع و رسانه‌های خارجی که نباید منتشر شوند.
- */
 const FOREIGN_SOURCE_KEYWORDS = [
   'bbc',
   'cnn',
@@ -54,9 +51,6 @@ const FOREIGN_SOURCE_KEYWORDS = [
   'pakistan'
 ];
 
-/*
- * موضوعات کاملاً نامرتبط با هدف ربات.
- */
 const IRRELEVANT_KEYWORDS = [
   'فال',
   'سرگرمی',
@@ -74,9 +68,6 @@ const IRRELEVANT_KEYWORDS = [
   'cryptocurrency'
 ];
 
-/*
- * پاک کردن HTML و موجودیت‌های متداول.
- */
 function cleanText(value) {
   if (!value) {
     return '';
@@ -91,20 +82,10 @@ function cleanText(value) {
     .replace(/&quot;/gi, '"')
     .replace(/&#39;/gi, "'")
     .replace(/&#x27;/gi, "'")
-    .replace(/&#(\d+);/g, function(match, code) {
-      try {
-        return String.fromCharCode(Number(code));
-      } catch (error) {
-        return ' ';
-      }
-    })
     .replace(/\s+/g, ' ')
     .trim();
 }
 
-/*
- * تبدیل تاریخ RSS به Date معتبر.
- */
 function parseDate(value) {
   if (!value) {
     return null;
@@ -119,9 +100,6 @@ function parseDate(value) {
   return date;
 }
 
-/*
- * بررسی اینکه خبر حداکثر 48 ساعت گذشته باشد.
- */
 function isRecentNews(item) {
   const publishedAt = parseDate(
     item.publishedAt ||
@@ -130,8 +108,17 @@ function isRecentNews(item) {
     item.date
   );
 
+  /*
+   * بعضی RSSها تاریخ معتبر نمی‌فرستند.
+   * در این حالت خبر را فقط به دلیل نبود تاریخ حذف نمی‌کنیم.
+   */
   if (!publishedAt) {
-    return false;
+    console.log(
+      '⚠️ خبر بدون تاریخ معتبر:',
+      item.title || 'بدون عنوان'
+    );
+
+    return true;
   }
 
   const now = Date.now();
@@ -140,13 +127,28 @@ function isRecentNews(item) {
     (now - publishedAt.getTime()) /
     (1000 * 60 * 60);
 
-  return ageHours >= 0 &&
-    ageHours <= MAX_NEWS_AGE_HOURS;
+  if (ageHours < -1) {
+    console.log(
+      '⚠️ تاریخ آینده:',
+      item.title || 'بدون عنوان',
+      publishedAt.toISOString()
+    );
+
+    return false;
+  }
+
+  if (ageHours > MAX_NEWS_AGE_HOURS) {
+    console.log(
+      `⏰ خبر قدیمی (${Math.round(ageHours)} ساعت):`,
+      item.title || 'بدون عنوان'
+    );
+
+    return false;
+  }
+
+  return true;
 }
 
-/*
- * بررسی محلی بودن خبر.
- */
 function isLocalNews(item) {
   const text = [
     item.title || '',
@@ -165,13 +167,6 @@ function isLocalNews(item) {
   });
 }
 
-/*
- * تشخیص منابع خارجی.
- *
- * نکته:
- * فقط وجود یک کلمه خارجی در متن کافی نیست.
- * ابتدا عنوان، نام منبع و لینک بررسی می‌شود.
- */
 function isForeignNews(item) {
   const sourceText = [
     item.sourceName || '',
@@ -192,9 +187,6 @@ function isForeignNews(item) {
   );
 }
 
-/*
- * حذف موضوعات نامرتبط.
- */
 function isIrrelevantNews(item) {
   const text = [
     item.title || '',
@@ -213,40 +205,17 @@ function isIrrelevantNews(item) {
   );
 }
 
-/*
- * استخراج URL تصویر از RSS.
- */
 function extractImageUrl(item) {
   if (!item) {
     return '';
   }
 
-  /*
-   * enclosure
-   */
   if (
     item.enclosure &&
-    item.enclosure.url &&
-    (
-      !item.enclosure.type ||
-      String(item.enclosure.type)
-        .toLowerCase()
-        .startsWith('image/')
-    )
-  ) {
-    return item.enclosure.url;
-  }
-
-  /*
-   * media:content
-   */
-  if (
-    item['media:content'] &&
-    item['media:content']['$'] &&
-    item['media:content']['$'].url
+    item.enclosure.url
   ) {
     const type =
-      item['media:content']['$'].type || '';
+      item.enclosure.type || '';
 
     if (
       !type ||
@@ -254,13 +223,30 @@ function extractImageUrl(item) {
         .toLowerCase()
         .startsWith('image/')
     ) {
-      return item['media:content']['$'].url;
+      return item.enclosure.url;
     }
   }
 
-  /*
-   * media:thumbnail
-   */
+  if (
+    item['media:content'] &&
+    item['media:content']['$'] &&
+    item['media:content']['$'].url
+  ) {
+    const media =
+      item['media:content']['$'];
+
+    const type = media.type || '';
+
+    if (
+      !type ||
+      String(type)
+        .toLowerCase()
+        .startsWith('image/')
+    ) {
+      return media.url;
+    }
+  }
+
   if (
     item['media:thumbnail'] &&
     item['media:thumbnail']['$'] &&
@@ -269,9 +255,6 @@ function extractImageUrl(item) {
     return item['media:thumbnail']['$'].url;
   }
 
-  /*
-   * استخراج اولین تصویر از متن HTML.
-   */
   const html = [
     item.content || '',
     item.description || '',
@@ -289,17 +272,11 @@ function extractImageUrl(item) {
   return '';
 }
 
-/*
- * استخراج URL ویدئو از RSS.
- */
 function extractVideoUrl(item) {
   if (!item) {
     return '';
   }
 
-  /*
-   * enclosure
-   */
   if (
     item.enclosure &&
     item.enclosure.url
@@ -329,9 +306,6 @@ function extractVideoUrl(item) {
     }
   }
 
-  /*
-   * media:content
-   */
   if (
     item['media:content'] &&
     item['media:content']['$'] &&
@@ -340,7 +314,8 @@ function extractVideoUrl(item) {
     const media =
       item['media:content']['$'];
 
-    const type = media.type || '';
+    const type =
+      media.type || '';
 
     if (
       String(type)
@@ -354,9 +329,6 @@ function extractVideoUrl(item) {
   return '';
 }
 
-/*
- * تشخیص منبع از RSS.
- */
 function getSourceName(item, source) {
   if (
     item &&
@@ -386,9 +358,6 @@ function getSourceName(item, source) {
   return '';
 }
 
-/*
- * ایجاد شناسه پایدار برای خبر.
- */
 function createNewsId(item) {
   const base = [
     item.title || '',
@@ -402,9 +371,6 @@ function createNewsId(item) {
     .digest('hex');
 }
 
-/*
- * تبدیل RSS item به ساختار استاندارد.
- */
 function normalizeItem(item, source) {
   const title = cleanText(
     item.title || ''
@@ -466,26 +432,25 @@ function normalizeItem(item, source) {
 
     videoUrl: videoUrl,
 
-    area: source && source.name
-      ? source.name
-      : ''
+    area:
+      source && source.name
+        ? source.name
+        : ''
   };
 
   return normalized;
 }
 
-/*
- * دریافت اخبار یک منبع.
- */
 async function fetchSource(source) {
   try {
     console.log(
       `در حال دریافت: ${source.name}`
     );
 
-    const feed = await parser.parseURL(
-      source.url
-    );
+    const feed =
+      await parser.parseURL(
+        source.url
+      );
 
     if (
       !feed ||
@@ -502,10 +467,28 @@ async function fetchSource(source) {
     return feed.items
       .slice(0, maxItems)
       .map(function(item) {
-        return normalizeItem(
-          item,
-          source
+
+        const normalized =
+          normalizeItem(
+            item,
+            source
+          );
+
+        console.log(
+          'RSS ITEM:',
+          JSON.stringify({
+            source: source.name,
+            title: normalized.title,
+            publishedAt:
+              normalized.publishedAt,
+            rawPubDate:
+              item.pubDate || null,
+            rawIsoDate:
+              item.isoDate || null
+          })
         );
+
+        return normalized;
       });
 
   } catch (error) {
@@ -518,9 +501,6 @@ async function fetchSource(source) {
   }
 }
 
-/*
- * حذف اخبار تکراری.
- */
 function removeDuplicates(items) {
   const seen = new Set();
   const result = [];
@@ -546,9 +526,6 @@ function removeDuplicates(items) {
   return result;
 }
 
-/*
- * دریافت تمام اخبار واجد شرایط.
- */
 async function fetchAllNews() {
   const sources =
     getGoogleNewsSources();
@@ -576,28 +553,29 @@ async function fetchAllNews() {
     `کل اخبار خام: ${allItems.length}`
   );
 
-  /*
-   * 1. فقط اخبار 48 ساعت اخیر
-   */
   let filtered =
-    allItems.filter(isRecentNews);
+    allItems.filter(
+      isRecentNews
+    );
 
   console.log(
     `بعد از فیلتر 48 ساعت: ${filtered.length}`
   );
 
   /*
-   * 2. فقط اخبار محلی ارسباران
+   * خبر باید مربوط به مناطق هدف باشد.
    */
   filtered =
-    filtered.filter(isLocalNews);
+    filtered.filter(
+      isLocalNews
+    );
 
   console.log(
     `بعد از فیلتر محلی: ${filtered.length}`
   );
 
   /*
-   * 3. حذف منابع خارجی
+   * حذف منابع خارجی.
    */
   filtered =
     filtered.filter(function(item) {
@@ -609,7 +587,7 @@ async function fetchAllNews() {
   );
 
   /*
-   * 4. حذف موضوعات نامرتبط
+   * حذف موضوعات نامرتبط.
    */
   filtered =
     filtered.filter(function(item) {
@@ -620,32 +598,27 @@ async function fetchAllNews() {
     `بعد از حذف اخبار نامرتبط: ${filtered.length}`
   );
 
-  /*
-   * 5. حذف تکراری‌ها
-   */
   filtered =
     removeDuplicates(filtered);
 
-  /*
-   * مرتب‌سازی از جدیدترین به قدیمی‌ترین
-   */
   filtered.sort(function(a, b) {
     const dateA =
       a.publishedAt
-        ? new Date(a.publishedAt).getTime()
+        ? new Date(
+            a.publishedAt
+          ).getTime()
         : 0;
 
     const dateB =
       b.publishedAt
-        ? new Date(b.publishedAt).getTime()
+        ? new Date(
+            b.publishedAt
+          ).getTime()
         : 0;
 
     return dateB - dateA;
   });
 
-  /*
-   * محدودیت تعداد کل اخبار
-   */
   const maxTotal =
     Number(
       CONFIG.news.maxTotalItems || 30
