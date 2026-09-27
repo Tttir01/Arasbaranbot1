@@ -1,8 +1,17 @@
 'use strict';
 
-const { fetchAllNews } = require('./news');
-const { formatNews } = require('./formatter');
-const { hasNews, saveNews } = require('./storage');
+const {
+  fetchAllNews
+} = require('./news');
+
+const {
+  formatNews
+} = require('./formatter');
+
+const {
+  hasNews,
+  saveNews
+} = require('./storage');
 
 const {
   sendMessage,
@@ -10,83 +19,114 @@ const {
   sendVideo
 } = require('./telegram');
 
-const { getConfig } = require('./config');
+const {
+  getConfig
+} = require('./config');
 
-async function sendNewsItem(item, message) {
+async function sendNewsItem(
+  item,
+  message
+) {
+
   /*
-   * اگر ویدئو وجود داشته باشد، ابتدا ویدئو ارسال می‌شود.
+   * اول ویدئو
    */
   if (item.videoUrl) {
+
     try {
+
       await sendVideo(
         item.videoUrl,
         message
       );
 
-      console.log('🎥 ویدئو ارسال شد.');
-
-      return 'video';
-    } catch (error) {
-      console.error(
-        '⚠️ ارسال ویدئو ناموفق بود:',
-        error.message
+      console.log(
+        '🎥 ویدئو ارسال شد.'
       );
 
-      /*
-       * اگر ویدئو نشد، در صورت وجود عکس
-       * عکس را امتحان می‌کنیم.
-       */
+      return 'video';
+
+    } catch (error) {
+
+      console.error(
+        '⚠️ ارسال ویدئو ناموفق:',
+        error.message
+      );
     }
   }
 
   /*
-   * اگر عکس وجود داشته باشد.
+   * سپس عکس
    */
   if (item.imageUrl) {
+
     try {
+
       await sendPhoto(
         item.imageUrl,
         message
       );
 
-      console.log('🖼️ عکس ارسال شد.');
+      console.log(
+        '🖼️ عکس ارسال شد.'
+      );
 
       return 'photo';
+
     } catch (error) {
+
       console.error(
-        '⚠️ ارسال عکس ناموفق بود:',
+        '⚠️ ارسال عکس ناموفق:',
         error.message
       );
     }
   }
 
   /*
-   * اگر رسانه وجود نداشت یا ارسال آن شکست خورد،
-   * متن خبر ارسال می‌شود.
+   * در صورت نبود رسانه،
+   * متن ارسال می‌شود.
    */
-  await sendMessage(message);
+  await sendMessage(
+    message
+  );
 
-  console.log('📝 متن خبر ارسال شد.');
+  console.log(
+    '📝 متن خبر ارسال شد.'
+  );
 
   return 'text';
 }
 
 async function main() {
-  console.log('================================');
-  console.log('ARASBARAN NEWS BOT');
-  console.log('================================');
 
-  const config = getConfig();
+  console.log(
+    '================================'
+  );
 
-  console.log('در حال دریافت اخبار...');
+  console.log(
+    'ARASBARAN NEWS BOT'
+  );
 
-  const news = await fetchAllNews();
+  console.log(
+    '================================'
+  );
+
+  const config =
+    getConfig();
+
+  console.log(
+    'در حال دریافت اخبار...'
+  );
+
+  const news =
+    await fetchAllNews();
 
   console.log(
     `تعداد اخبار دریافت‌شده: ${news.length}`
   );
 
   if (news.length === 0) {
+
     console.log(
       'هیچ خبر جدید و واجد شرایطی دریافت نشد.'
     );
@@ -99,21 +139,19 @@ async function main() {
   let errors = 0;
 
   for (const item of news) {
+
     try {
-      const id = item.id || item.link;
+
+      const id =
+        item.id ||
+        item.link;
 
       if (!id) {
-        console.log(
-          '⚠️ خبر بدون شناسه رد شد.'
-        );
-
         continue;
       }
 
-      /*
-       * جلوگیری از ارسال خبر تکراری
-       */
       if (hasNews(id)) {
+
         skipped++;
 
         console.log(
@@ -123,19 +161,18 @@ async function main() {
         continue;
       }
 
-      /*
-       * ساخت متن نهایی خبر
-       */
-      const message = formatNews(item, {
-        timezone: config.timezone,
-        maxDescriptionLength: 650
-      });
-
-      if (!message) {
-        console.log(
-          '⚠️ متن خبر خالی است.'
+      const message =
+        formatNews(
+          item,
+          {
+            timezone:
+              config.timezone,
+            maxDescriptionLength:
+              650
+          }
         );
 
+      if (!message) {
         continue;
       }
 
@@ -144,7 +181,7 @@ async function main() {
       );
 
       console.log(
-        `📰 خبر: ${item.title}`
+        `📰 ${item.title}`
       );
 
       if (item.imageUrl) {
@@ -159,52 +196,56 @@ async function main() {
         );
       }
 
-      /*
-       * ارسال خبر
-       */
-      const type = await sendNewsItem(
-        item,
-        message
-      );
+      const type =
+        await sendNewsItem(
+          item,
+          message
+        );
 
-      /*
-       * فقط بعد از ارسال موفق،
-       * خبر در تاریخچه ذخیره می‌شود.
-       */
       saveNews(id);
 
       sent++;
 
       console.log(
-        `✅ خبر با موفقیت ارسال شد (${type})`
+        `✅ ارسال موفق (${type}): ${item.title}`
       );
 
-      /*
-       * فاصله بین ارسال خبرها
-       */
       await new Promise(
-        resolve => setTimeout(resolve, 1500)
+        resolve =>
+          setTimeout(
+            resolve,
+            1500
+          )
       );
 
     } catch (error) {
+
       errors++;
 
       console.error(
-        `❌ خطا در ارسال خبر: ${
-          item.title || 'بدون عنوان'
+        `❌ خطا در ارسال: ${
+          item.title ||
+          'بدون عنوان'
         }`
       );
 
       console.error(
-        error.stack || error.message
+        error.stack ||
+        error.message
       );
     }
   }
 
   console.log('');
-  console.log('================================');
-  console.log('گزارش نهایی');
-  console.log('================================');
+  console.log(
+    '================================'
+  );
+  console.log(
+    'گزارش نهایی'
+  );
+  console.log(
+    '================================'
+  );
 
   console.log(
     `اخبار دریافت‌شده: ${news.length}`
@@ -222,15 +263,23 @@ async function main() {
     `خطا: ${errors}`
   );
 
-  console.log('================================');
+  console.log(
+    '================================'
+  );
 }
 
-main().catch(error => {
-  console.error('');
-  console.error('FATAL ERROR:');
-  console.error(
-    error.stack || error.message
-  );
+main().catch(
+  error => {
 
-  process.exit(1);
-});
+    console.error(
+      'FATAL ERROR:'
+    );
+
+    console.error(
+      error.stack ||
+      error.message
+    );
+
+    process.exit(1);
+  }
+);
