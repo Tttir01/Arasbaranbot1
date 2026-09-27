@@ -1,36 +1,37 @@
 'use strict';
 
 const { fetchAllNews } = require('./news');
-const { formatNews } = require('./formatter');
-const { hasNews, saveNews } = require('./storage');
-const { sendMessage } = require('./telegram');
-const { getConfig } = require('./config');
 
 async function main() {
   console.log('================================');
-  console.log('Arasbaran News Bot');
+  console.log('ARASBARAN NEWS BOT - TEST MODE');
   console.log('================================');
 
-  const config = getConfig();
-
-  console.log('در حال دریافت اخبار...');
-  console.log('--------------------------------');
+  console.log('');
+  console.log('⚠️ حالت تست فعال است.');
+  console.log('⚠️ هیچ پیامی به تلگرام ارسال نخواهد شد.');
+  console.log('');
 
   const news = await fetchAllNews();
+
+  console.log('');
+  console.log('================================');
+  console.log('نتیجه دریافت اخبار');
+  console.log('================================');
 
   console.log(
     `تعداد اخبار دریافت‌شده: ${news.length}`
   );
 
-  console.log('--------------------------------');
+  console.log('');
 
   if (news.length === 0) {
     console.log(
-      'هیچ خبری از منابع دریافت نشد.'
+      '❌ هیچ خبری دریافت نشد.'
     );
 
     console.log(
-      'لطفاً خطاهای منابع RSS را در لاگ بررسی کنید.'
+      'لطفاً خطاهای منابع RSS را بررسی کنید.'
     );
 
     console.log('================================');
@@ -38,123 +39,50 @@ async function main() {
     return;
   }
 
-  let sent = 0;
-  let skipped = 0;
-  let errors = 0;
+  news.forEach((item, index) => {
+    console.log('');
+    console.log(
+      `خبر شماره ${index + 1}`
+    );
 
-  for (const item of news) {
-    try {
-      const id =
-        item.id ||
-        item.link;
+    console.log(
+      `عنوان: ${item.title}`
+    );
 
-      if (!id) {
-        console.log(
-          'خبر بدون شناسه رد شد.'
-        );
+    console.log(
+      `منبع: ${item.sourceName}`
+    );
 
-        continue;
-      }
+    console.log(
+      `منطقه: ${
+        Array.isArray(item.areas)
+          ? item.areas.join('، ')
+          : ''
+      }`
+    );
 
-      /*
-       * جلوگیری از ارسال خبر تکراری
-       */
-      if (hasNews(id)) {
-        skipped++;
+    console.log(
+      `زمان: ${item.publishedAt}`
+    );
 
-        console.log(
-          `تکراری: ${item.title || 'بدون عنوان'}`
-        );
+    console.log(
+      `لینک: ${item.link}`
+    );
 
-        continue;
-      }
+    console.log('--------------------------------');
+  });
 
-      /*
-       * ساخت متن خبر
-       */
-      const message = formatNews(
-        item,
-        {
-          timezone:
-            config.timezone,
-
-          maxDescriptionLength: 500
-        }
-      );
-
-      if (!message) {
-        console.log(
-          `متن خبر خالی است: ${item.title || 'بدون عنوان'}`
-        );
-
-        continue;
-      }
-
-      /*
-       * ارسال به تلگرام
-       */
-      await sendMessage(message);
-
-      /*
-       * ذخیره شناسه خبر پس از ارسال موفق
-       */
-      saveNews(id);
-
-      sent++;
-
-      console.log(
-        `ارسال شد: ${item.title || 'بدون عنوان'}`
-      );
-
-      /*
-       * فاصله کوتاه بین ارسال‌ها
-       */
-      await new Promise(
-        resolve => setTimeout(resolve, 1200)
-      );
-
-    } catch (error) {
-      errors++;
-
-      console.error(
-        `خطا در ارسال خبر "${item.title || 'بدون عنوان'}":`
-      );
-
-      console.error(
-        error.message
-      );
-    }
-  }
-
+  console.log('');
   console.log('================================');
-  console.log('گزارش نهایی');
+  console.log('TEST FINISHED');
+  console.log('هیچ پیامی به تلگرام ارسال نشد.');
   console.log('================================');
-
-  console.log(
-    `تعداد اخبار دریافت‌شده: ${news.length}`
-  );
-
-  console.log(
-    `تعداد ارسال موفق: ${sent}`
-  );
-
-  console.log(
-    `تعداد اخبار تکراری: ${skipped}`
-  );
-
-  console.log(
-    `تعداد خطاها: ${errors}`
-  );
-
-  console.log('================================');
-  console.log(
-    'Arasbaran News Bot finished.'
-  );
 }
 
 main().catch(error => {
+  console.error('');
   console.error('================================');
-  console.error('FATAL ERROR');
+  console.error('TEST ERROR');
   console.error('================================');
 
   console.error(
