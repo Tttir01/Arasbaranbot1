@@ -20,7 +20,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          
 
       - name: Install dependencies
         run: npm install
@@ -34,13 +33,37 @@ jobs:
           MAX_TOTAL_ITEMS: 30
           REQUEST_TIMEOUT: 25000
           DATA_FILE: data/news-history.json
-        run: npm run run
+        run: |
+          echo "================================"
+          echo "Starting Arasbaran News Bot"
+          echo "================================"
+          npm run run
+          echo "================================"
+          echo "News bot finished"
+          echo "================================"
+
+      - name: Check news history
+        if: always()
+        run: |
+          echo "Checking history file..."
+
+          if [ -f data/news-history.json ]; then
+            echo "History file exists."
+            ls -lh data/news-history.json
+            echo "--------------------------------"
+            head -50 data/news-history.json
+          else
+            echo "History file does not exist."
+          fi
 
       - name: Save news history
+        if: success()
         run: |
           if [ -f data/news-history.json ]; then
+
             git config user.name "Arasbaran News Bot"
-            git config user.email "actions@github.com"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
             git add data/news-history.json
 
             if git diff --cached --quiet; then
@@ -49,6 +72,7 @@ jobs:
               git commit -m "Update news history"
               git push
             fi
+
           else
-            echo "History file does not exist."
+            echo "No history file to save."
           fi
