@@ -13,13 +13,10 @@ const parser = new Parser({
 
   headers: {
     'User-Agent':
-      'Mozilla/5.0 ArasbaranNewsBot/1.0'
+      'Mozilla/5.0 ArasbaranNewsBot/2.0'
   }
 });
 
-/**
- * ساخت شناسه یکتا برای خبر
- */
 function createNewsId(item) {
   const base = [
     item.title || '',
@@ -34,9 +31,6 @@ function createNewsId(item) {
     .substring(0, 32);
 }
 
-/**
- * پاک کردن HTML
- */
 function stripHtml(text) {
   if (!text) {
     return '';
@@ -48,13 +42,11 @@ function stripHtml(text) {
     .replace(/&amp;/gi, '&')
     .replace(/&quot;/gi, '"')
     .replace(/&#39;/gi, "'")
+    .replace(/&#x27;/gi, "'")
     .replace(/\s+/g, ' ')
     .trim();
 }
 
-/**
- * استخراج نام منبع از RSS
- */
 function extractSourceName(item, source) {
   if (item.creator) {
     return stripHtml(item.creator);
@@ -75,9 +67,6 @@ function extractSourceName(item, source) {
   return 'منبع خبری';
 }
 
-/**
- * تبدیل یک آیتم RSS به ساختار استاندارد خبر
- */
 function normalizeItem(item, source) {
   const title = stripHtml(item.title || '');
 
@@ -119,27 +108,53 @@ function normalizeItem(item, source) {
   };
 }
 
-/**
- * دریافت اخبار یک منبع
- */
 async function fetchSource(source) {
+  console.log('');
+  console.log('--------------------------------');
+  console.log(`در حال بررسی منبع: ${source.name}`);
+  console.log(`URL: ${source.url}`);
+
   try {
-    const feed = await parser.parseURL(source.url);
+    const feed = await parser.parseURL(
+      source.url
+    );
 
     const items = Array.isArray(feed.items)
       ? feed.items
       : [];
 
-    return items
-      .slice(0, CONFIG.news.maxItemsPerSource)
+    console.log(
+      `تعداد آیتم RSS: ${items.length}`
+    );
+
+    const news = items
+      .slice(
+        0,
+        CONFIG.news.maxItemsPerSource
+      )
       .map(item =>
         normalizeItem(item, source)
       )
       .filter(item => item.title);
 
+    console.log(
+      `تعداد خبر معتبر: ${news.length}`
+    );
+
+    if (news.length > 0) {
+      console.log(
+        `اولین خبر: ${news[0].title}`
+      );
+    }
+
+    return news;
+
   } catch (error) {
     console.error(
-      `خطا در دریافت منبع ${source.name}:`,
+      `❌ خطا در منبع ${source.name}`
+    );
+
+    console.error(
       error.message
     );
 
@@ -147,26 +162,38 @@ async function fetchSource(source) {
   }
 }
 
-/**
- * دریافت اخبار تمام منابع فعال
- */
 async function fetchAllNews() {
-  const sources = getGoogleNewsSources();
+  console.log('');
+  console.log('================================');
+  console.log('شروع دریافت اخبار');
+  console.log('================================');
+
+  const sources =
+    getGoogleNewsSources();
+
+  console.log(
+    `تعداد منابع فعال: ${sources.length}`
+  );
 
   const allNews = [];
 
   for (const source of sources) {
-    const news = await fetchSource(source);
+    const news =
+      await fetchSource(source);
 
     allNews.push(...news);
   }
 
+  console.log('');
+  console.log('================================');
+  console.log(
+    `مجموع اخبار دریافت‌شده: ${allNews.length}`
+  );
+  console.log('================================');
+
   return allNews;
 }
 
-/**
- * حذف اخبار تکراری
- */
 function removeDuplicates(items) {
   const seen = new Set();
   const result = [];
@@ -187,9 +214,6 @@ function removeDuplicates(items) {
   return result;
 }
 
-/**
- * مرتب‌سازی اخبار از جدید به قدیم
- */
 function sortByDate(items) {
   return [...items].sort((a, b) => {
     const dateA =
@@ -202,9 +226,6 @@ function sortByDate(items) {
   });
 }
 
-/**
- * محدود کردن تعداد اخبار
- */
 function limitNews(items, maxItems) {
   const limit =
     Number(maxItems) > 0
@@ -214,11 +235,9 @@ function limitNews(items, maxItems) {
   return items.slice(0, limit);
 }
 
-/**
- * دریافت، پاک‌سازی و مرتب‌سازی اخبار
- */
 async function collectNews() {
-  const news = await fetchAllNews();
+  const news =
+    await fetchAllNews();
 
   const uniqueNews =
     removeDuplicates(news);
@@ -232,23 +251,23 @@ async function collectNews() {
   );
 }
 
-/**
- * دریافت اخبار یک منطقه خاص
- */
 async function fetchNewsByArea(area) {
   const sources =
-    getGoogleNewsSources().filter(source => {
-      if (!Array.isArray(source.areas)) {
-        return false;
-      }
+    getGoogleNewsSources().filter(
+      source => {
+        if (!Array.isArray(source.areas)) {
+          return false;
+        }
 
-      return source.areas.includes(area);
-    });
+        return source.areas.includes(area);
+      }
+    );
 
   const results = [];
 
   for (const source of sources) {
-    const news = await fetchSource(source);
+    const news =
+      await fetchSource(source);
 
     results.push(...news);
   }
