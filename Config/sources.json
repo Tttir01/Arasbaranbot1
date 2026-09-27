@@ -1,0 +1,68 @@
+{
+  "sources": [
+    {
+      "id": "varzgan",
+      "name": "ورزقان",
+      "type": "google-news",
+      "url": "https://news.google.com/rss/search?q=%D9%88%D8%B1%D8%B2%D9%82%D8%A7%D9%86&hl=fa&gl=IR&ceid=IR%3Afa",
+      "areas": ["ورزقان", "ارسباران"],
+      "enabled": true
+    },
+    {
+      "id": "khavarana",
+      "name": "خاروانا",
+      "type": "google-news",
+      "url": "https://news.google.com/rss/search?q=%D8%AE%D8%A7%D8%B1%D9%88%D8%A7%D9%86%D8%A7&hl=fa&gl=IR&ceid=IR%3Afa",
+      "areas": ["خاروانا", "ورزقان", "ارسباران"],
+      "enabled": true
+    },
+    {
+      "id": "ahar",
+      "name": "اهر",
+      "type": "google-news",
+      "url": "https://news.google.com/rss/search?q=%D8%A7%D9%87%D8%B1&hl=fa&gl=IR&ceid=IR%3Afa",
+      "areas": ["اهر", "ارسباران"],
+      "enabled": true
+    },
+    {
+      "id": "kaleybar",
+      "name": "کلیبر",
+      "type": "google-news",
+      "url": "https://news.google.com/rss/search?q=%DA%A9%D9%84%DB%8C%D8%A8%D8%B1&hl=fa&gl=IR&ceid=IR%3Afa",
+      "areas": ["کلیبر", "ارسباران"],
+      "enabled": true
+    },
+    {
+      "id": "hurand",
+      "name": "هوراند",
+      "type": "google-news",
+      "url": "https://news.google.com/rss/search?q=%D9%87%D9%88%D8%B1%D8%A7%D9%86%D8%AF&hl=fa&gl=IR&ceid=IR%3Afa",
+      "areas": ["هوراند", "ارسباران"],
+      "enabled": true
+    },
+    {
+      "id": "khodaafarin",
+      "name": "خداآفرین",
+      "type": "google-news",
+      "url": "https://news.google.com/rss/search?q=%D8%AE%D8%AF%D8%A7%D8%A2%D9%81%D8%B1%DB%8C%D9%86&hl=fa&gl=IR&ceid=IR%3Afa",
+      "areas": ["خداآفرین", "ارسباران"],
+      "enabled": true
+    },
+    {
+      "id": "arasbaran",
+      "name": "ارسباران",
+      "type": "google-news",
+      "url": "https://news.google.com/rss/search?q=%D8%A7%D8%B1%D8%B3%D8%A8%D8%A7%D8%B1%D8%A7%D9%86&hl=fa&gl=IR&ceid=IR%3Afa",
+      "areas": ["ارسباران"],
+      "enabled": true
+    },
+    {
+      "id": "varzgan-government",
+      "name": "ادارات و نهادهای ورزقان",
+      "type": "google-news",
+      "url": "https://news.google.com/rss/search?q=%D9%88%D8%B1%D8%B2%D9%82%D8%A7%D9%86+%D9%81%D8%B1%D9%85%D8%A7%D9%86%D8%AF%D8%A7%D8%B1%DB%8C+OR+%D8%A2%D9%85%D9%88%D8%B2%D8%B4+%D9%88+%D9%BE%D8%B1%D9%88%D8%B1%D8%B4+OR+%D8%AC%D9%87%D8%A7%D8%AF+%DA%A9%D8%B4%D8%A7%D9%88%D8%B1%D8%B2%DB%8C+OR+%D8%A8%D8%B1%D9%82+OR+%DA%AF%D8%A7%D8%B2&hl=fa&gl=IR&ceid=IR%3Afa",
+      "areas": ["ورزقان", "ارسباران"],
+      "enabled": true
+    }
+  ]
+}
