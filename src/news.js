@@ -1,1376 +1,1124 @@
 'use strict';
 
 const Parser = require('rss-parser');
-const https = require('https');
 const http = require('http');
+const https = require('https');
 const crypto = require('crypto');
 
 const { loadSources } = require('./sources');
 
-/* =========================================================
-   RSS PARSER
-   ========================================================= */
-
 const parser = new Parser({
   timeout: 30000,
-
   headers: {
     'User-Agent':
-      'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120 Safari/537.36 ArasbaranNewsBot/4.0',
-
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' +
+      '(KHTML, like Gecko) Chrome/128.0 Safari/537.36',
     'Accept':
-      'application/rss+xml, application/xml, text/xml, text/html;q=0.9, */*;q=0.8',
-
-    'Accept-Language':
-      'fa-IR,fa;q=0.9,en;q=0.5'
+      'application/rss+xml, application/xml, text/xml;q=0.9, */*;q=0.8',
+    'Accept-Language': 'fa-IR,fa;q=0.9,en-US;q=0.7,en;q=0.5'
   }
 });
 
-
-/* =========================================================
-   CONFIG
-   ========================================================= */
-
 const MAX_NEWS_AGE_HOURS =
-  Number(
-    process.env.NEWS_MAX_AGE_HOURS || 48
-  );
+  Number(process.env.NEWS_MAX_AGE_HOURS || 48);
 
-
-/* =========================================================
-   LOCAL KEYWORDS
-   ========================================================= */
+const MAX_ITEMS_PER_SOURCE =
+  Number(process.env.MAX_ITEMS_PER_SOURCE || 20);
 
 const LOCAL_KEYWORDS = [
-
+  'ورزقان',
   'ورزقان',
   'خاروانا',
-
   'اهر',
-
   'کلیبر',
   'كليبر',
-
   'هوراند',
-
   'خداآفرین',
   'خدا آفرین',
   'خداآفرين',
-
   'ارسباران',
-
   'سونگون',
-
+  'مس سونگون',
   'قره داغ',
   'قره‌داغ',
   'قره داغی',
-
   'آذربایجان شرقی',
-  'آذربايجان شرقي'
+  'آذربايجان شرقي',
+  'تبریز',
+  'اهر و ورزقان',
+  'اهر و هوراند'
 ];
-
-
-/* =========================================================
-   FOREIGN KEYWORDS
-   ========================================================= */
 
 const FOREIGN_KEYWORDS = [
-
-  'bbc',
-  'cnn',
-  'reuters',
-
-  'al jazeera',
-  'aljazeera',
-
-  'dw',
-  'euronews',
-
-  'voa',
-  'france24',
-
-  'associated press',
-
-  'new york times',
-  'washington post',
-
-  'the guardian',
-
-  'iran international',
-
-  'afghanistan',
-  'pakistan',
-
+  'united states',
+  'usa',
+  'america',
+  'uk',
+  'united kingdom',
+  'london',
+  'canada',
+  'australia',
+  'france',
+  'germany',
+  'italy',
+  'spain',
+  'israel',
   'ukraine',
   'russia',
-
-  'israel',
-
-  'america',
-  'american',
-
-  'trump',
-
-  'europe',
-
-  'غزه',
-  'اسرائیل',
-  'اوکراین',
-  'افغانستان',
-  'پاکستان'
+  'china',
+  'japan',
+  'india'
 ];
 
-
-/* =========================================================
-   TEXT NORMALIZATION
-   ========================================================= */
-
-function normalizeText(value) {
-
-  return String(value || '')
-
-    .replace(/ي/g, 'ی')
-    .replace(/ى/g, 'ی')
-    .replace(/ك/g, 'ک')
-
-    .replace(/\u200c/g, ' ')
-
-    .replace(/\s+/g, ' ')
-
-    .trim();
-}
-
-
-/* =========================================================
-   CLEAN HTML
-   ========================================================= */
-
-function cleanHtml(value) {
-
-  return String(value || '')
-
-    .replace(
-      /<script[\s\S]*?<\/script>/gi,
-      ' '
-    )
-
-    .replace(
-      /<style[\s\S]*?<\/style>/gi,
-      ' '
-    )
-
-    .replace(
-      /<[^>]+>/g,
-      ' '
-    )
-
-    .replace(
-      /&nbsp;/gi,
-      ' '
-    )
-
-    .replace(
-      /&amp;/gi,
-      '&'
-    )
-
-    .replace(
-      /&quot;/gi,
-      '"'
-    )
-
-    .replace(
-      /&#39;/gi,
-      "'"
-    )
-
-    .replace(
-      /&#x27;/gi,
-      "'"
-    )
-
-    .replace(
-      /\s+/g,
-      ' '
-    )
-
-    .trim();
-}
-
-
-/* =========================================================
-   ABSOLUTE URL
-   ========================================================= */
-
-function absoluteUrl(base, value) {
-
-  if (!value) {
-    return '';
-  }
-
-  try {
-
-    return new URL(
-      value,
-      base
-    ).href;
-
-  } catch (error) {
-
-    return '';
-  }
-}
-
-
-/* =========================================================
-   HTTP GET
-   ========================================================= */
-
-function httpGet(url, redirects) {
-
-  redirects =
-    redirects || 0;
-
-  return new Promise(
-    (resolve, reject) => {
-
-      if (redirects > 5) {
-
-        reject(
-          new Error(
-            'تعداد redirect بیش از حد مجاز است'
-          )
-        );
-
-        return;
-      }
-
-
-      let parsed;
-
-      try {
-
-        parsed =
-          new URL(url);
-
-      } catch (error) {
-
-        reject(
-          new Error(
-            `URL نامعتبر: ${url}`
-          )
-        );
-
-        return;
-      }
-
-
-      const client =
-        parsed.protocol === 'https:'
-          ? https
-          : http;
-
-
-      const request =
-        client.get(
-
-          parsed,
-
-          {
-
-            headers: {
-
-              'User-Agent':
-                'Mozilla/5.0 ArasbaranNewsBot/4.0',
-
-              'Accept':
-                'application/rss+xml, application/xml, text/xml, text/html;q=0.9, */*;q=0.8',
-
-              'Accept-Language':
-                'fa-IR,fa;q=0.9,en;q=0.5',
-
-              'Cache-Control':
-                'no-cache',
-
-              'Pragma':
-                'no-cache'
-            }
-
-          },
-
-          response => {
-
-            const status =
-              response.statusCode || 0;
-
-
-            /*
-             * Redirect
-             */
-
-            if (
-              status >= 300 &&
-              status < 400 &&
-              response.headers.location
-            ) {
-
-              const nextUrl =
-                absoluteUrl(
-                  url,
-                  response.headers.location
-                );
-
-
-              response.resume();
-
-
-              httpGet(
-                nextUrl,
-                redirects + 1
-              )
-
-                .then(resolve)
-
-                .catch(reject);
-
-
-              return;
-            }
-
-
-            let body = '';
-
-
-            response.setEncoding(
-              'utf8'
-            );
-
-
-            response.on(
-              'data',
-              chunk => {
-
-                body += chunk;
-
-              }
-            );
-
-
-            response.on(
-              'end',
-              () => {
-
-                console.log(
-                  `   HTTP ${status} | ${body.length} bytes | ${url}`
-                );
-
-
-                if (
-                  status < 200 ||
-                  status >= 300
-                ) {
-
-                  reject(
-                    new Error(
-                      `HTTP ${status}`
-                    )
-                  );
-
-                  return;
-                }
-
-
-                resolve(body);
-
-              }
-            );
-
-          }
-        );
-
-
-      request.setTimeout(
-        30000,
-        () => {
-
-          request.destroy(
-            new Error(
-              'HTTP timeout'
-            )
+/* ---------------------------------------------------------
+ * ابزار HTTP
+ * --------------------------------------------------------- */
+
+function httpGet(url, redirects = 0) {
+  return new Promise((resolve, reject) => {
+    if (!url) {
+      reject(new Error('URL خالی است'));
+      return;
+    }
+
+    if (redirects > 5) {
+      reject(new Error('تعداد Redirect بیش از حد مجاز است'));
+      return;
+    }
+
+    let client;
+
+    try {
+      client = url.startsWith('https://') ? https : http;
+    } catch (error) {
+      reject(error);
+      return;
+    }
+
+    const request = client.get(
+      url,
+      {
+        headers: {
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' +
+            '(KHTML, like Gecko) Chrome/128.0 Safari/537.36',
+          'Accept':
+            'application/rss+xml, application/xml, text/xml;q=0.9, */*;q=0.8',
+          'Accept-Language':
+            'fa-IR,fa;q=0.9,en-US;q=0.7,en;q=0.5',
+          'Cache-Control': 'no-cache'
+        },
+        timeout: 30000
+      },
+      response => {
+        const status = response.statusCode || 0;
+
+        /*
+         * Redirect
+         */
+        if (
+          status >= 300 &&
+          status < 400 &&
+          response.headers.location
+        ) {
+          const location = new URL(
+            response.headers.location,
+            url
+          ).toString();
+
+          response.resume();
+
+          console.log(
+            `   ↪ Redirect ${status}: ${location}`
           );
 
+          httpGet(location, redirects + 1)
+            .then(resolve)
+            .catch(reject);
+
+          return;
         }
+
+        let data = '';
+
+        response.setEncoding('utf8');
+
+        response.on('data', chunk => {
+          data += chunk;
+        });
+
+        response.on('end', () => {
+          console.log(
+            `   HTTP ${status} | ${Buffer.byteLength(data, 'utf8')} bytes | ${url}`
+          );
+
+          if (status < 200 || status >= 300) {
+            reject(
+              new Error(
+                `HTTP ${status} برای ${url}`
+              )
+            );
+            return;
+          }
+
+          resolve(data);
+        });
+      }
+    );
+
+    request.on('timeout', () => {
+      request.destroy(
+        new Error(`Timeout: ${url}`)
       );
+    });
 
-
-      request.on(
-        'error',
-        reject
-      );
-
-    }
-  );
+    request.on('error', reject);
+  });
 }
 
-
-/* =========================================================
-   DATE PARSER
-   ========================================================= */
+/* ---------------------------------------------------------
+ * تاریخ
+ * --------------------------------------------------------- */
 
 function parseDate(value) {
+  if (!value) return null;
 
-  if (!value) {
-    return null;
+  const date = new Date(value);
+
+  if (!Number.isNaN(date.getTime())) {
+    return date;
   }
 
-
-  const date =
-    new Date(value);
-
-
-  if (
-    Number.isNaN(
-      date.getTime()
-    )
-  ) {
-
-    return null;
-  }
-
-
-  return date;
+  return null;
 }
 
-
-/* =========================================================
-   IMAGE EXTRACTION
-   ========================================================= */
+/* ---------------------------------------------------------
+ * تصویر
+ * --------------------------------------------------------- */
 
 function extractImage(item) {
-
-  if (!item) {
-    return '';
-  }
-
-
-  /*
-   * enclosure
-   */
-
-  if (
-    item.enclosure &&
-    item.enclosure.url
-  ) {
-
-    const type =
-      String(
-        item.enclosure.type || ''
-      ).toLowerCase();
-
-
-    if (
-      !type ||
-      type.indexOf(
-        'image/'
-      ) === 0
-    ) {
-
+  try {
+    if (item.enclosure && item.enclosure.url) {
       return item.enclosure.url;
     }
-  }
-
-
-  /*
-   * image
-   */
-
-  if (
-    item.image &&
-    typeof item.image === 'string'
-  ) {
-
-    return item.image;
-  }
-
-
-  /*
-   * media thumbnail
-   */
-
-  if (
-    item['media:thumbnail'] &&
-    item['media:thumbnail']['$']
-  ) {
-
-    return (
-      item['media:thumbnail']['$'].url ||
-      ''
-    );
-  }
-
-
-  /*
-   * media content
-   */
-
-  if (
-    item['media:content'] &&
-    item['media:content']['$']
-  ) {
-
-    const media =
-      item['media:content']['$'];
-
 
     if (
-      !media.type ||
-      String(
-        media.type
-      )
-        .toLowerCase()
-        .indexOf('image/') === 0
+      item.media &&
+      item.media.thumbnail &&
+      item.media.thumbnail.$ &&
+      item.media.thumbnail.$.url
     ) {
-
-      return (
-        media.url ||
-        ''
-      );
+      return item.media.thumbnail.$.url;
     }
-  }
 
+    if (
+      item.media &&
+      item.media.content &&
+      item.media.content.url
+    ) {
+      return item.media.content.url;
+    }
 
-  /*
-   * image inside description
-   */
+    const html =
+      item.content ||
+      item['content:encoded'] ||
+      item.description ||
+      '';
 
-  const html =
-    item.content ||
-    item.description ||
-    '';
-
-
-  const match =
-    String(html).match(
+    const match = html.match(
       /<img[^>]+src=["']([^"']+)["']/i
     );
 
-
-  if (match) {
-
-    return match[1];
+    if (match && match[1]) {
+      return match[1];
+    }
+  } catch (error) {
+    console.log(
+      `⚠️ خطا در استخراج تصویر: ${error.message}`
+    );
   }
 
-
-  return '';
+  return null;
 }
 
+/* ---------------------------------------------------------
+ * نرمال‌سازی خبر
+ * --------------------------------------------------------- */
 
-/* =========================================================
-   NORMALIZE RSS ITEM
-   ========================================================= */
-
-function normalizeItem(
-  item,
-  source
-) {
-
+function normalizeItem(item, source) {
   const title =
-    cleanHtml(
-      item.title ||
-      item.name ||
-      'خبر جدید'
-    );
-
+    String(item.title || '')
+      .replace(/\s+/g, ' ')
+      .trim();
 
   const description =
-    cleanHtml(
-
+    String(
       item.contentSnippet ||
-
-      item.description ||
-
       item.content ||
-
-      item.summary ||
-
+      item['content:encoded'] ||
+      item.description ||
       ''
-
-    );
-
+    )
+      .replace(/<[^>]*>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
 
   const link =
     item.link ||
-    item.url ||
+    item.guid ||
     '';
 
-
-  const date =
+  const publishedAt =
     parseDate(
-
       item.isoDate ||
-
       item.pubDate ||
-
       item.published ||
-
-      item.publishedAt ||
-
+      item.updated ||
       item.date
-
     );
 
+  const image =
+    extractImage(item);
 
-  const idBase = [
-
-    source.id,
-
-    title,
-
-    link,
-
-    date
-      ? date.toISOString()
-      : ''
-
-  ].join('|');
-
-
-  const id =
-    item.guid ||
-    item.id ||
-    crypto
-      .createHash('sha256')
-      .update(idBase)
-      .digest('hex');
-
+  const sourceName =
+    source.name ||
+    source.title ||
+    'منبع نامشخص';
 
   return {
-
-    id: String(id),
-
-    sourceId:
-      source.id,
-
-    sourceName:
-      item.sourceName ||
-      source.name,
+    id: crypto
+      .createHash('sha1')
+      .update(
+        `${title}|${link}|${sourceName}`
+      )
+      .digest('hex'),
 
     title,
-
     description,
-
-    content:
-      description,
-
     link,
+    image,
+
+    sourceName,
 
     publishedAt:
-      date
-        ? date.toISOString()
+      publishedAt
+        ? publishedAt.toISOString()
         : null,
 
-    imageUrl:
-      extractImage(item),
-
-    videoUrl:
-      item.videoUrl ||
-      '',
-
-    areas:
-      Array.isArray(
-        source.areas
-      )
-        ? source.areas
-        : []
-
+    rawPublishedAt:
+      item.isoDate ||
+      item.pubDate ||
+      item.published ||
+      item.updated ||
+      item.date ||
+      null
   };
 }
 
+/* ---------------------------------------------------------
+ * تشخیص محلی بودن
+ * --------------------------------------------------------- */
 
-/* =========================================================
-   RSS FETCHER
-   ========================================================= */
+function containsLocalKeyword(text) {
+  const value =
+    String(text || '').toLowerCase();
 
-async function fetchRssSource(
-  source
-) {
-
-  console.log(
-    `📡 RSS شروع: ${source.name}`
+  return LOCAL_KEYWORDS.some(keyword =>
+    value.includes(
+      String(keyword).toLowerCase()
+    )
   );
+}
 
+function isLocalNews(item) {
+  const text = [
+    item.title,
+    item.description,
+    item.sourceName,
+    item.link
+  ]
+    .filter(Boolean)
+    .join(' ');
 
-  console.log(
-    `   URL: ${source.url}`
+  return containsLocalKeyword(text);
+}
+
+/* ---------------------------------------------------------
+ * حذف اخبار خارجی
+ * --------------------------------------------------------- */
+
+function containsForeignKeyword(text) {
+  const value =
+    String(text || '').toLowerCase();
+
+  return FOREIGN_KEYWORDS.some(keyword =>
+    value.includes(keyword.toLowerCase())
   );
+}
 
+function isForeignNews(item) {
+  const title =
+    String(item.title || '').toLowerCase();
+
+  const description =
+    String(item.description || '').toLowerCase();
+
+  /*
+   * فقط وقتی عنوان کاملاً به یک موضوع خارجی اشاره
+   * می‌کند آن را حذف می‌کنیم.
+   *
+   * چون Google News ممکن است خبر محلی را از یک
+   * رسانه خارجی هم نمایش دهد.
+   */
+
+  if (
+    containsLocalKeyword(title) ||
+    containsLocalKeyword(description)
+  ) {
+    return false;
+  }
+
+  return containsForeignKeyword(title);
+}
+
+/* ---------------------------------------------------------
+ * تاریخ جدید بودن خبر
+ * --------------------------------------------------------- */
+
+function isRecentNews(item) {
+  if (!item.publishedAt) {
+    console.log(
+      `⚠️ خبر بدون تاریخ پذیرفته شد: ${item.title}`
+    );
+
+    return true;
+  }
+
+  const published =
+    new Date(item.publishedAt);
+
+  const now =
+    Date.now();
+
+  const ageHours =
+    (now - published.getTime()) /
+    (1000 * 60 * 60);
+
+  if (ageHours < -24) {
+    /*
+     * بعضی RSSها تاریخ آینده یا timezone
+     * غیرعادی دارند.
+     */
+    console.log(
+      `⚠️ تاریخ آینده: ${item.title}`
+    );
+
+    return true;
+  }
+
+  if (ageHours <= MAX_NEWS_AGE_HOURS) {
+    return true;
+  }
+
+  return false;
+}
+
+/* ---------------------------------------------------------
+ * ساخت Queryهای جایگزین Google News
+ * --------------------------------------------------------- */
+
+function buildGoogleQueries(source) {
+  const base =
+    String(
+      source.query ||
+      source.search ||
+      source.name ||
+      ''
+    ).trim();
+
+  const name =
+    String(
+      source.name ||
+      base
+    ).trim();
+
+  const queries = [];
+
+  function add(value) {
+    if (!value) return;
+
+    const clean =
+      String(value).trim();
+
+    if (!clean) return;
+
+    if (!queries.includes(clean)) {
+      queries.push(clean);
+    }
+  }
+
+  /*
+   * Query اصلی
+   */
+  add(base);
+  add(name);
+
+  /*
+   * Queryهای مخصوص شهرها
+   */
+
+  if (
+    /ورزقان/.test(name) ||
+    /ورزقان/.test(base)
+  ) {
+    add('ورزقان آذربایجان شرقی');
+    add('ورزقان سونگون');
+    add('ورزقان شهرستان');
+    add('"ورزقان" آذربایجان شرقی');
+  }
+
+  if (
+    /خاروانا/.test(name) ||
+    /خاروانا/.test(base)
+  ) {
+    add('خاروانا آذربایجان شرقی');
+    add('خاروانا ورزقان');
+    add('"خاروانا" آذربایجان شرقی');
+  }
+
+  if (
+    /اهر/.test(name) ||
+    /اهر/.test(base)
+  ) {
+    add('اهر آذربایجان شرقی');
+    add('شهرستان اهر');
+    add('اهر قره داغ');
+    add('"اهر" آذربایجان شرقی');
+  }
+
+  if (
+    /کلیبر/.test(name) ||
+    /كليبر/.test(name) ||
+    /کلیبر/.test(base) ||
+    /كليبر/.test(base)
+  ) {
+    add('کلیبر آذربایجان شرقی');
+    add('شهرستان کلیبر');
+    add('کلیبر ارسباران');
+    add('"کلیبر" آذربایجان شرقی');
+  }
+
+  if (
+    /هوراند/.test(name) ||
+    /هوراند/.test(base)
+  ) {
+    add('هوراند آذربایجان شرقی');
+    add('شهرستان هوراند');
+    add('"هوراند" آذربایجان شرقی');
+  }
+
+  if (
+    /خداآفرین/.test(name) ||
+    /خدا آفرین/.test(name) ||
+    /خداآفرین/.test(base) ||
+    /خدا آفرین/.test(base)
+  ) {
+    add('خداآفرین آذربایجان شرقی');
+    add('خدا آفرین آذربایجان شرقی');
+    add('شهرستان خداآفرین');
+    add('"خداآفرین" آذربایجان شرقی');
+  }
+
+  if (
+    /ارسباران/.test(name) ||
+    /ارسباران/.test(base)
+  ) {
+    add('ارسباران آذربایجان شرقی');
+    add('ارسباران قره داغ');
+    add('منطقه ارسباران');
+    add('"ارسباران" ایران');
+  }
+
+  /*
+   * حداکثر 6 Query برای جلوگیری از درخواست زیاد
+   */
+  return queries.slice(0, 6);
+}
+
+/* ---------------------------------------------------------
+ * ساخت URL Google News
+ * --------------------------------------------------------- */
+
+function buildGoogleNewsUrl(query, options = {}) {
+  const q =
+    encodeURIComponent(query);
+
+  /*
+   * اول fa/IR
+   */
+  const hl =
+    options.hl || 'fa';
+
+  const gl =
+    options.gl || 'IR';
+
+  const ceid =
+    options.ceid || 'IR:fa';
+
+  return (
+    `https://news.google.com/rss/search` +
+    `?q=${q}` +
+    `&hl=${encodeURIComponent(hl)}` +
+    `&gl=${encodeURIComponent(gl)}` +
+    `&ceid=${encodeURIComponent(ceid)}`
+  );
+}
+
+/* ---------------------------------------------------------
+ * دریافت RSS
+ * --------------------------------------------------------- */
+
+async function fetchRssUrl(url, source) {
+  console.log(
+    `   URL: ${url}`
+  );
 
   try {
-
-    /*
-     * دریافت مستقیم XML
-     *
-     * به جای:
-     *
-     * parser.parseURL()
-     *
-     * از:
-     *
-     * httpGet()
-     * +
-     * parser.parseString()
-     *
-     * استفاده می‌کنیم.
-     */
-
     const xml =
-      await httpGet(
-        source.url
-      );
-
+      await httpGet(url);
 
     console.log(
       `   RSS bytes: ${xml.length}`
     );
 
-
-    if (
-      !xml ||
-      !xml.trim()
-    ) {
-
-      throw new Error(
-        'پاسخ RSS خالی است'
-      );
-    }
-
-
-    /*
-     * بررسی اولیه
-     */
-
-    const beginning =
-      xml
-        .trim()
-        .substring(
-          0,
-          120
-        );
-
-
     console.log(
-      `   RSS شروع متن: ${beginning}`
+      `   RSS شروع متن: ${xml
+        .trim()
+        .substring(0, 180)}`
     );
 
-
     /*
-     * Parse XML
+     * اگر Google به انگلیسی Redirect کرده باشد
+     * همچنان XML را parse می‌کنیم.
      */
 
     const feed =
-      await parser.parseString(
-        xml
-      );
-
+      await parser.parseString(xml);
 
     const items =
-      Array.isArray(
-        feed.items
-      )
+      Array.isArray(feed.items)
         ? feed.items
         : [];
-
 
     console.log(
       `   RSS items: ${items.length}`
     );
 
-
-    if (
-      items.length === 0
-    ) {
-
+    if (items.length > 0) {
       console.log(
-        `⚠️ RSS بدون خبر: ${source.name}`
+        `   نمونه خبر: ${items[0].title || 'بدون عنوان'}`
       );
-
-      return [];
     }
 
-
-    /*
-     * نمایش نمونه اول
-     */
-
-    console.log(
-      `   نمونه خبر: ${
-        items[0].title ||
-        'بدون عنوان'
-      }`
-    );
-
-
-    return items.map(
-      item =>
-        normalizeItem(
-          item,
-          source
-        )
-    );
+    return items
+      .slice(0, MAX_ITEMS_PER_SOURCE)
+      .map(item =>
+        normalizeItem(item, source)
+      )
+      .filter(item => item.title);
 
   } catch (error) {
-
-    console.error(
-      `❌ RSS خطا: ${source.name}`
+    console.log(
+      `⚠️ خطای RSS: ${source.name}: ${error.message}`
     );
-
-
-    console.error(
-      `   ${error.message}`
-    );
-
 
     return [];
   }
 }
 
+/* ---------------------------------------------------------
+ * دریافت Google News با چند Query
+ * --------------------------------------------------------- */
 
-/* =========================================================
-   RECENT NEWS
-   ========================================================= */
+async function fetchGoogleNewsSource(source) {
+  const queries =
+    buildGoogleQueries(source);
 
-function isRecentNews(
-  item,
-  hours
-) {
+  if (!queries.length) {
+    console.log(
+      `⚠️ Query برای ${source.name} پیدا نشد`
+    );
 
-  hours =
-    hours ||
-    MAX_NEWS_AGE_HOURS;
+    return [];
+  }
 
+  console.log(
+    `🔎 تعداد Queryهای ${source.name}: ${queries.length}`
+  );
+
+  let allItems = [];
+
+  for (
+    let i = 0;
+    i < queries.length;
+    i++
+  ) {
+    const query =
+      queries[i];
+
+    console.log(
+      `   🔍 Query ${i + 1}/${queries.length}: ${query}`
+    );
+
+    /*
+     * اول درخواست فارسی ایران
+     */
+    const primaryUrl =
+      buildGoogleNewsUrl(
+        query,
+        {
+          hl: 'fa',
+          gl: 'IR',
+          ceid: 'IR:fa'
+        }
+      );
+
+    let items =
+      await fetchRssUrl(
+        primaryUrl,
+        source
+      );
+
+    /*
+     * اگر صفر بود، یک بار با en-US/US
+     * نیز امتحان می‌کنیم.
+     *
+     * این برای بعضی سرورهای GitHub Actions
+     * که Redirect منطقه‌ای دریافت می‌کنند مفید است.
+     */
+    if (items.length === 0) {
+      const fallbackUrl =
+        buildGoogleNewsUrl(
+          query,
+          {
+            hl: 'en-US',
+            gl: 'US',
+            ceid: 'US:en'
+          }
+        );
+
+      console.log(
+        `   🔁 تلاش جایگزین Google: ${query}`
+      );
+
+      items =
+        await fetchRssUrl(
+          fallbackUrl,
+          source
+        );
+    }
+
+    if (items.length > 0) {
+      console.log(
+        `   ✅ Query موفق: ${query} = ${items.length} خبر`
+      );
+
+      allItems =
+        allItems.concat(items);
+
+      /*
+       * بعد از یافتن خبر، Queryهای بعدی
+       * نیز اجرا می‌شوند ولی سقف نهایی کنترل می‌شود.
+       */
+    } else {
+      console.log(
+        `   ⭕ بدون خبر: ${query}`
+      );
+    }
+
+    /*
+     * جلوگیری از تعداد زیاد خبر
+     */
+    if (
+      allItems.length >=
+      MAX_ITEMS_PER_SOURCE
+    ) {
+      break;
+    }
+  }
 
   /*
-   * اگر تاریخ وجود نداشت
-   * فعلاً خبر را حذف نمی‌کنیم.
+   * حذف تکراری‌ها
    */
+  const unique =
+    new Map();
 
-  if (
-    !item.publishedAt
-  ) {
+  for (const item of allItems) {
+    const key =
+      item.link ||
+      `${item.title}|${item.sourceName}`;
 
-    console.log(
-      `⚠️ بدون تاریخ؛ فعلاً حذف نمی‌شود: ${item.title}`
-    );
-
-
-    return true;
+    if (!unique.has(key)) {
+      unique.set(key, item);
+    }
   }
 
+  const result =
+    Array.from(unique.values())
+      .slice(0, MAX_ITEMS_PER_SOURCE);
 
-  const time =
-    new Date(
-      item.publishedAt
-    ).getTime();
+  console.log(
+    `   🎯 مجموع خبرهای ${source.name}: ${result.length}`
+  );
 
+  return result;
+}
 
-  if (
-    Number.isNaN(time)
-  ) {
+/* ---------------------------------------------------------
+ * دریافت RSS معمولی
+ * --------------------------------------------------------- */
 
-    console.log(
-      `⚠️ تاریخ نامعتبر؛ فعلاً حذف نمی‌شود: ${item.title}`
+async function fetchNormalRssSource(source) {
+  console.log(
+    `📡 RSS شروع: ${source.name}`
+  );
+
+  console.log(
+    `   URL: ${source.url}`
+  );
+
+  const items =
+    await fetchRssUrl(
+      source.url,
+      source
     );
 
-
-    return true;
+  if (items.length === 0) {
+    console.log(
+      `⚠️ RSS بدون خبر: ${source.name}`
+    );
   }
 
-
-  const age =
-    (
-      Date.now() -
-      time
-    ) /
-    3600000;
-
-
-  return (
-
-    age >= -6 &&
-
-    age <= hours
-
-  );
+  return items;
 }
 
+/* ---------------------------------------------------------
+ * دریافت هر منبع
+ * --------------------------------------------------------- */
 
-/* =========================================================
-   LOCAL NEWS FILTER
-   ========================================================= */
+async function fetchSource(source) {
+  const type =
+    String(
+      source.type ||
+      'rss'
+    )
+      .trim()
+      .toLowerCase();
 
-function isLocalNews(
-  item
-) {
+  /*
+   * Google News
+   */
+  if (
+    type === 'google-news' ||
+    type === 'google_news' ||
+    type === 'googlenews'
+  ) {
+    return fetchGoogleNewsSource(
+      source
+    );
+  }
 
-  const text =
-    normalizeText(
+  /*
+   * RSS
+   */
+  if (
+    type === 'rss' ||
+    type === 'xml'
+  ) {
+    return fetchNormalRssSource(
+      source
+    );
+  }
 
-      [
+  /*
+   * HTML فعلاً RSS نیست.
+   * فعلاً آن را حذف نمی‌کنیم؛ فقط گزارش می‌دهیم.
+   */
+  if (
+    type === 'html'
+  ) {
+    console.log(
+      `⚠️ منبع HTML فعلاً توسط RSS Reader پشتیبانی نمی‌شود: ${source.name}`
+    );
 
-        item.title,
+    return [];
+  }
 
-        item.description,
-
-        item.sourceName,
-
-        item.link
-
-      ].join(' ')
-
-    ).toLowerCase();
-
-
-  return LOCAL_KEYWORDS.some(
-    keyword =>
-
-      text.includes(
-
-        normalizeText(
-          keyword
-        ).toLowerCase()
-
-      )
+  console.log(
+    `⚠️ نوع منبع ناشناخته: ${type}`
   );
+
+  return [];
 }
 
+/* ---------------------------------------------------------
+ * حذف تکراری‌ها
+ * --------------------------------------------------------- */
 
-/* =========================================================
-   FOREIGN NEWS FILTER
-   ========================================================= */
-
-function isForeignNews(
-  item
-) {
-
-  const text =
-    normalizeText(
-
-      [
-
-        item.title,
-
-        item.description,
-
-        item.sourceName,
-
-        item.link
-
-      ].join(' ')
-
-    ).toLowerCase();
-
-
-  return FOREIGN_KEYWORDS.some(
-    keyword =>
-
-      text.includes(
-
-        normalizeText(
-          keyword
-        ).toLowerCase()
-
-      )
-  );
-}
-
-
-/* =========================================================
-   DEDUPLICATION
-   ========================================================= */
-
-function deduplicate(
-  items
-) {
-
+function deduplicateNews(items) {
   const map =
     new Map();
 
-
-  for (
-    const item of items
-  ) {
-
+  for (const item of items) {
     const key =
       item.link ||
-      item.id ||
-      item.title;
+      `${item.title}|${item.sourceName}`;
 
-
-    if (
-      key &&
-      !map.has(key)
-    ) {
-
-      map.set(
-        key,
-        item
-      );
-
+    if (!map.has(key)) {
+      map.set(key, item);
     }
-
   }
-
 
   return Array.from(
     map.values()
   );
 }
 
-
-/* =========================================================
-   SOURCE FETCH
-   ========================================================= */
-
-async function fetchSource(
-  source
-) {
-
-  if (!source) {
-    return [];
-  }
-
-
-  /*
-   * RSS
-   */
-
-  if (
-    source.type === 'rss' ||
-    source.type === 'google-news'
-  ) {
-
-    return fetchRssSource(
-      source
-    );
-  }
-
-
-  console.log(
-    `⚠️ نوع منبع ناشناخته: ${source.type}`
-  );
-
-
-  return [];
-}
-
-
-/* =========================================================
-   MAIN NEWS FETCHER
-   ========================================================= */
+/* ---------------------------------------------------------
+ * دریافت همه اخبار
+ * --------------------------------------------------------- */
 
 async function fetchAllNews() {
+  console.log(
+    '================================'
+  );
 
-  const sources =
-    loadSources();
-
+  console.log(
+    'در حال دریافت اخبار...'
+  );
 
   console.log(
     '================================'
   );
 
+  const sources =
+    await loadSources();
+
+  const activeSources =
+    Array.isArray(sources)
+      ? sources.filter(
+          source =>
+            source &&
+            source.enabled !== false
+        )
+      : [];
 
   console.log(
-    `تعداد منابع فعال: ${sources.length}`
+    `تعداد منابع فعال: ${activeSources.length}`
   );
-
 
   console.log(
     `حداکثر سن خبر: ${MAX_NEWS_AGE_HOURS} ساعت`
   );
 
-
   console.log(
     '================================'
   );
 
-
   let rawItems = [];
 
+  let successSources = 0;
+  let emptySources = 0;
 
-  let successSources =
-    0;
-
-
-  let failedSources =
-    0;
-
-
-  /*
-   * دریافت منابع
-   */
-
-  for (
-    const source of sources
-  ) {
-
+  for (const source of activeSources) {
     console.log(
       `در حال دریافت: ${source.name}`
     );
 
-
     try {
-
       const items =
-        await fetchSource(
-          source
-        );
-
+        await fetchSource(source);
 
       console.log(
         `   نتیجه ${source.name}: ${items.length}`
       );
 
-
-      if (
-        items.length > 0
-      ) {
-
+      if (items.length > 0) {
         successSources++;
-
+        rawItems =
+          rawItems.concat(items);
       } else {
-
-        failedSources++;
-
+        emptySources++;
       }
-
-
-      rawItems =
-        rawItems.concat(
-          items
-        );
-
     } catch (error) {
+      emptySources++;
 
-      failedSources++;
-
-
-      console.error(
-        `❌ خطای منبع ${source.name}: ${error.message}`
+      console.log(
+        `❌ خطا در ${source.name}: ${error.message}`
       );
-
     }
-
   }
 
-
-  /*
-   * آمار منابع
-   */
-
   console.log(
-    `منابع دارای خروجی: ${successSources}`
+    '================================'
   );
 
-
   console.log(
-    `منابع بدون خروجی/ناموفق: ${failedSources}`
+    `منابع موفق: ${successSources}`
   );
 
+  console.log(
+    `منابع خالی/ناموفق: ${emptySources}`
+  );
 
   console.log(
     `کل اخبار خام: ${rawItems.length}`
   );
 
-
   /*
-   * حذف تکراری
+   * حذف تکراری‌ها
    */
+  const beforeDedup =
+    rawItems.length;
 
-  const unique =
-    deduplicate(
-      rawItems
-    );
-
+  rawItems =
+    deduplicateNews(rawItems);
 
   console.log(
-    `بعد از حذف تکراری: ${unique.length}`
+    `بعد از حذف تکراری: ${rawItems.length}`
   );
-
-
-  /*
-   * فیلتر زمان
-   */
-
-  const recent =
-    unique.filter(
-      item =>
-        isRecentNews(
-          item,
-          MAX_NEWS_AGE_HOURS
-        )
-    );
-
 
   console.log(
-    `بعد از فیلتر ${MAX_NEWS_AGE_HOURS} ساعت: ${recent.length}`
+    `تعداد تکراری حذف‌شده: ${
+      beforeDedup - rawItems.length
+    }`
   );
 
+  /*
+   * فیلتر زمانی
+   */
+  const recentItems =
+    rawItems.filter(
+      isRecentNews
+    );
+
+  console.log(
+    `بعد از فیلتر ${MAX_NEWS_AGE_HOURS} ساعت: ${recentItems.length}`
+  );
 
   /*
    * فیلتر محلی
    */
-
-  const local =
-    recent.filter(
+  const localItems =
+    recentItems.filter(
       isLocalNews
     );
 
-
   console.log(
-    `بعد از فیلتر محلی: ${local.length}`
+    `بعد از فیلتر محلی: ${localItems.length}`
   );
 
-
   /*
-   * حذف منابع/موضوعات خارجی
+   * حذف اخبار خارجی
    */
-
-  const nonForeign =
-    local.filter(
+  const nonForeignItems =
+    localItems.filter(
       item =>
-        !isForeignNews(
-          item
-        )
+        !isForeignNews(item)
     );
 
-
   console.log(
-    `بعد از حذف منابع خارجی: ${nonForeign.length}`
+    `بعد از حذف اخبار خارجی: ${nonForeignItems.length}`
   );
 
-
   /*
-   * مرتب‌سازی
+   * مرتب‌سازی جدیدترین خبرها
    */
-
-  nonForeign.sort(
+  nonForeignItems.sort(
     (a, b) => {
-
-      const dateA =
+      const ta =
         a.publishedAt
-          ? new Date(
-              a.publishedAt
-            ).getTime()
+          ? new Date(a.publishedAt).getTime()
           : 0;
 
-
-      const dateB =
+      const tb =
         b.publishedAt
-          ? new Date(
-              b.publishedAt
-            ).getTime()
+          ? new Date(b.publishedAt).getTime()
           : 0;
 
-
-      return dateB - dateA;
-
+      return tb - ta;
     }
   );
 
-
-  /*
-   * محدودیت نهایی
-   */
-
-  const max =
-    Number(
-      process.env.MAX_TOTAL_ITEMS ||
-      30
-    );
-
-
-  const finalItems =
-    nonForeign.slice(
-      0,
-      max
-    );
-
-
   console.log(
-    `تعداد اخبار نهایی: ${finalItems.length}`
+    `تعداد اخبار دریافت‌شده: ${nonForeignItems.length}`
   );
 
-
   /*
-   * نمایش خروجی نهایی
+   * نمایش جزئیات
    */
-
   if (
-    finalItems.length > 0
+    nonForeignItems.length > 0
   ) {
+    console.log(
+      '================================'
+    );
 
     console.log(
-      '-------------------------------'
+      'اخبار نهایی:'
     );
 
+    nonForeignItems
+      .slice(0, 30)
+      .forEach(
+        (item, index) => {
+          console.log(
+            `${index + 1}. ${item.title}`
+          );
 
-    finalItems.forEach(
-      (item, index) => {
+          console.log(
+            `   منبع: ${item.sourceName}`
+          );
 
-        console.log(
-          `${index + 1}. ${item.title}`
-        );
+          console.log(
+            `   تاریخ: ${
+              item.publishedAt || 'بدون تاریخ'
+            }`
+          );
 
-        console.log(
-          `   منبع: ${item.sourceName}`
-        );
-
-        console.log(
-          `   تاریخ: ${
-            item.publishedAt ||
-            'بدون تاریخ'
-          }`
-        );
-
-        console.log(
-          `   لینک: ${item.link}`
-        );
-
-      }
-    );
-
-
+          console.log(
+            `   لینک: ${item.link || 'بدون لینک'}`
+          );
+        }
+      );
+  } else {
     console.log(
-      '-------------------------------'
+      'هیچ خبر جدید و واجد شرایطی دریافت نشد.'
     );
-
   }
 
+  console.log(
+    '================================'
+  );
 
-  return finalItems;
+  return nonForeignItems;
 }
 
-
-/* =========================================================
-   EXPORTS
-   ========================================================= */
+/* ---------------------------------------------------------
+ * صادرات
+ * --------------------------------------------------------- */
 
 module.exports = {
-
   fetchAllNews,
-
   fetchSource,
-
-  fetchRssSource,
-
+  fetchGoogleNewsSource,
+  fetchNormalRssSource,
   isRecentNews,
-
   isLocalNews,
-
   isForeignNews,
-
-  deduplicate,
-
-  normalizeItem
-
+  deduplicateNews,
+  buildGoogleQueries,
+  buildGoogleNewsUrl,
+  normalizeItem,
+  extractImage
 };
