@@ -1,93 +1,113 @@
 'use strict';
 
 const { fetchAllNews } = require('./news');
+const { formatNews } = require('./formatter');
+const { hasNews, saveNews } = require('./storage');
+const { sendMessage } = require('./telegram');
+const { getConfig } = require('./config');
 
 async function main() {
   console.log('================================');
-  console.log('ARASBARAN NEWS BOT - TEST MODE');
+  console.log('ARASBARAN NEWS BOT');
   console.log('================================');
 
-  console.log('');
-  console.log('⚠️ حالت تست فعال است.');
-  console.log('⚠️ هیچ پیامی به تلگرام ارسال نخواهد شد.');
-  console.log('');
+  const config = getConfig();
+
+  console.log('در حال دریافت اخبار...');
 
   const news = await fetchAllNews();
-
-  console.log('');
-  console.log('================================');
-  console.log('نتیجه دریافت اخبار');
-  console.log('================================');
 
   console.log(
     `تعداد اخبار دریافت‌شده: ${news.length}`
   );
 
-  console.log('');
-
   if (news.length === 0) {
-    console.log(
-      '❌ هیچ خبری دریافت نشد.'
-    );
-
-    console.log(
-      'لطفاً خطاهای منابع RSS را بررسی کنید.'
-    );
-
-    console.log('================================');
-
+    console.log('هیچ خبر جدیدی دریافت نشد.');
     return;
   }
 
-  news.forEach((item, index) => {
-    console.log('');
-    console.log(
-      `خبر شماره ${index + 1}`
-    );
+  let sent = 0;
+  let skipped = 0;
+  let errors = 0;
 
-    console.log(
-      `عنوان: ${item.title}`
-    );
+  for (const item of news) {
+    try {
+      const id = item.id || item.link;
 
-    console.log(
-      `منبع: ${item.sourceName}`
-    );
+      if (!id) {
+        continue;
+      }
 
-    console.log(
-      `منطقه: ${
-        Array.isArray(item.areas)
-          ? item.areas.join('، ')
-          : ''
-      }`
-    );
+      if (hasNews(id)) {
+        skipped++;
+        continue;
+      }
 
-    console.log(
-      `زمان: ${item.publishedAt}`
-    );
+      const message = formatNews(item, {
+        timezone: config.timezone,
+        maxDescriptionLength: 500
+      });
 
-    console.log(
-      `لینک: ${item.link}`
-    );
+      if (!message) {
+        continue;
+      }
 
-    console.log('--------------------------------');
-  });
+      console.log(
+        `در حال ارسال: ${item.title}`
+      );
 
-  console.log('');
+      await sendMessage(message);
+
+      saveNews(id);
+
+      sent++;
+
+      console.log(
+        `✅ ارسال شد: ${item.title}`
+      );
+
+      await new Promise(
+        resolve => setTimeout(resolve, 1200)
+      );
+
+    } catch (error) {
+      errors++;
+
+      console.error(
+        `❌ خطا در ارسال: ${item.title || 'بدون عنوان'}`
+      );
+
+      console.error(
+        error.message
+      );
+    }
+  }
+
   console.log('================================');
-  console.log('TEST FINISHED');
-  console.log('هیچ پیامی به تلگرام ارسال نشد.');
+  console.log('گزارش نهایی');
+  console.log('================================');
+
+  console.log(
+    `اخبار دریافت‌شده: ${news.length}`
+  );
+
+  console.log(
+    `ارسال موفق: ${sent}`
+  );
+
+  console.log(
+    `تکراری: ${skipped}`
+  );
+
+  console.log(
+    `خطا: ${errors}`
+  );
+
   console.log('================================');
 }
 
 main().catch(error => {
-  console.error('');
-  console.error('================================');
-  console.error('TEST ERROR');
-  console.error('================================');
-
-  console.error(
-    error.stack || error.message
-  );
-
+  console.error('FATAL ERROR:');
+  console.error(error.stack || error.message);
   process.exit(1);
 });
