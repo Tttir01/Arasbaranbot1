@@ -1,11 +1,88 @@
-name: "      - name: Run Arasbaran News Bot
+name: Arasbaran News Bot
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/30 * * * *'
+
+permissions:
+  contents: write
+
+jobs:
+  newsbot:
+    runs-on: ubuntu-latest
+
+    steps:
+
+      # --------------------------------
+      # دریافت کدهای پروژه
+      # --------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # --------------------------------
+      # نصب Node.js
+      # --------------------------------
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # --------------------------------
+      # نصب وابستگی‌ها
+      # --------------------------------
+      - name: Install dependencies
+        run: |
+          echo "Installing dependencies..."
+          npm install
+
+      # --------------------------------
+      # بررسی پروژه
+      # --------------------------------
+      - name: Check project
+        run: |
+          echo "================================"
+          echo "Project information"
+          echo "================================"
+
+          echo "Node:"
+          node --version
+
+          echo "NPM:"
+          npm --version
+
+          echo "--------------------------------"
+
+          echo "Root files:"
+          ls -la
+
+          echo "--------------------------------"
+
+          echo "Source files:"
+          ls -la src
+
+          echo "--------------------------------"
+
+          echo "Config files:"
+          ls -la config
+
+          echo "================================"
+
+      # --------------------------------
+      # اجرای ربات
+      # --------------------------------
+      - name: Run Arasbaran News Bot
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHANNEL_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
+
           TIMEZONE: Asia/Tehran
+
           MAX_ITEMS_PER_SOURCE: 10
           MAX_TOTAL_ITEMS: 30
+
           REQUEST_TIMEOUT: 25000
+
           DATA_FILE: data/news-history.json
 
         run: |
@@ -13,13 +90,7 @@ name: "      - name: Run Arasbaran News Bot
           echo "Starting Arasbaran News Bot"
           echo "================================"
 
-          echo "Node version:"
-          node --version
-
-          echo "NPM version:"
-          npm --version
-
-          echo "Checking environment..."
+          echo "Checking Telegram configuration..."
 
           if [ -z "$TELEGRAM_BOT_TOKEN" ]; then
             echo "ERROR: TELEGRAM_BOT_TOKEN is NOT available"
@@ -35,56 +106,84 @@ name: "      - name: Run Arasbaran News Bot
             echo "TELEGRAM_CHANNEL_ID is available"
           fi
 
-          echo "Checking project files:"
-          ls -la
           echo "--------------------------------"
 
-          echo "Checking src:"
-          ls -la src
-          echo "--------------------------------"
+          echo "Starting Node.js application..."
 
-          echo "Checking config:"
-          ls -la config
-          echo "--------------------------------"
-
-          echo "Running bot..."
           npm run run
 
-          echo "================================"
+          echo "--------------------------------"
           echo "News bot finished"
           echo "================================"
 
+      # --------------------------------
+      # بررسی فایل تاریخچه
+      # --------------------------------
       - name: Check news history
         if: always()
         run: |
-          echo "Checking history file..."
+          echo "================================"
+          echo "Checking history file"
+          echo "================================"
 
           if [ -f data/news-history.json ]; then
+
             echo "History file exists."
+
+            echo "File information:"
             ls -lh data/news-history.json
+
             echo "--------------------------------"
+
+            echo "History preview:"
             head -50 data/news-history.json
+
           else
+
             echo "History file does not exist."
+
           fi
 
+          echo "================================"
+
+      # --------------------------------
+      # ذخیره تاریخچه در GitHub
+      # --------------------------------
       - name: Save news history
         if: success()
         run: |
+          echo "================================"
+          echo "Saving news history"
+          echo "================================"
+
           if [ -f data/news-history.json ]; then
 
             git config user.name "Arasbaran News Bot"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+            git config user.email \
+              "41898282+github-actions[bot]@users.noreply.github.com"
 
             git add data/news-history.json
 
             if git diff --cached --quiet; then
+
               echo "No history changes."
+
             else
-              git commit -m "Update news history"
+
+              git commit \
+                -m "Update news history"
+
               git push
+
             fi
 
           else
+
             echo "No history file to save."
+
           fi
+
+          echo "================================"
+          echo "History step finished"
+          echo "================================"
