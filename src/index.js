@@ -1,86 +1,103 @@
 'use strict';
 
-const {
-  loadSources
-} = require('./sources');
-
-const {
-  fetchAllNews
-} = require('./news');
-
-const {
-  formatNewsItem
-} = require('./formatter');
-
-const {
-  hasNews,
-  saveNews
-} = require('./storage');
-
-const {
-  sendMessage
-} = require('./telegram');
+const { fetchAllNews } = require('./news');
+const { formatNews } = require('./formatter');
+const { hasNews, saveNews } = require('./storage');
+const { sendMessage } = require('./telegram');
+const { getConfig } = require('./config');
 
 async function main() {
+  console.log('================================');
+  console.log('Arasbaran News Bot');
+  console.log('================================');
 
-  console.log(
-    '================================'
-  );
+  const config = getConfig();
 
-  console.log(
-    'Arasbaran News Bot'
-  );
+  console.log('در حال دریافت اخبار...');
+  console.log('--------------------------------');
 
-  console.log(
-    '================================'
-  );
-
-  const sources =
-    loadSources();
-
-  console.log(
-    `تعداد منابع فعال: ${sources.length}`
-  );
-
-  const news =
-    await fetchAllNews(
-      sources
-    );
+  const news = await fetchAllNews();
 
   console.log(
     `تعداد اخبار دریافت‌شده: ${news.length}`
   );
 
+  console.log('--------------------------------');
+
+  if (news.length === 0) {
+    console.log(
+      'هیچ خبری از منابع دریافت نشد.'
+    );
+
+    console.log(
+      'لطفاً خطاهای منابع RSS را در لاگ بررسی کنید.'
+    );
+
+    console.log('================================');
+
+    return;
+  }
+
   let sent = 0;
+  let skipped = 0;
+  let errors = 0;
 
   for (const item of news) {
-
     try {
-
       const id =
         item.id ||
-        item.link ||
-        item.guid;
+        item.link;
 
       if (!id) {
+        console.log(
+          'خبر بدون شناسه رد شد.'
+        );
+
         continue;
       }
 
+      /*
+       * جلوگیری از ارسال خبر تکراری
+       */
       if (hasNews(id)) {
+        skipped++;
+
+        console.log(
+          `تکراری: ${item.title || 'بدون عنوان'}`
+        );
+
         continue;
       }
 
-      const message =
-        formatNewsItem(item);
+      /*
+       * ساخت متن خبر
+       */
+      const message = formatNews(
+        item,
+        {
+          timezone:
+            config.timezone,
 
-      if (!message) {
-        continue;
-      }
-
-      await sendMessage(
-        message
+          maxDescriptionLength: 500
+        }
       );
 
+      if (!message) {
+        console.log(
+          `متن خبر خالی است: ${item.title || 'بدون عنوان'}`
+        );
+
+        continue;
+      }
+
+      /*
+       * ارسال به تلگرام
+       */
+      await sendMessage(message);
+
+      /*
+       * ذخیره شناسه خبر پس از ارسال موفق
+       */
       saveNews(id);
 
       sent++;
@@ -89,17 +106,32 @@ async function main() {
         `ارسال شد: ${item.title || 'بدون عنوان'}`
       );
 
+      /*
+       * فاصله کوتاه بین ارسال‌ها
+       */
+      await new Promise(
+        resolve => setTimeout(resolve, 1200)
+      );
+
     } catch (error) {
+      errors++;
 
       console.error(
-        'خطا در پردازش خبر:',
+        `خطا در ارسال خبر "${item.title || 'بدون عنوان'}":`
+      );
+
+      console.error(
         error.message
       );
     }
   }
 
+  console.log('================================');
+  console.log('گزارش نهایی');
+  console.log('================================');
+
   console.log(
-    '--------------------------------'
+    `تعداد اخبار دریافت‌شده: ${news.length}`
   );
 
   console.log(
@@ -107,21 +139,27 @@ async function main() {
   );
 
   console.log(
+    `تعداد اخبار تکراری: ${skipped}`
+  );
+
+  console.log(
+    `تعداد خطاها: ${errors}`
+  );
+
+  console.log('================================');
+  console.log(
     'Arasbaran News Bot finished.'
   );
 }
 
-main().catch(
-  error => {
+main().catch(error => {
+  console.error('================================');
+  console.error('FATAL ERROR');
+  console.error('================================');
 
-    console.error(
-      'FATAL ERROR:'
-    );
+  console.error(
+    error.stack || error.message
+  );
 
-    console.error(
-      error.message
-    );
-
-    process.exit(1);
-  }
-);
+  process.exit(1);
+});
