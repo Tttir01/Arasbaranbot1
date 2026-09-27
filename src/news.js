@@ -1,499 +1,482 @@
 'use strict';
 
 const Parser = require('rss-parser');
-const crypto = require('crypto');
+const https = require('https');
+const http = require('http');
+const cheerio = require('cheerio');
 
-const { getConfig } = require('./config');
-const { getGoogleNewsSources } = require('./sources');
-
-const CONFIG = getConfig();
+const {
+  loadSources
+} = require('./sources');
 
 const parser = new Parser({
-  timeout: CONFIG.news.requestTimeout,
+  timeout: 30000,
   headers: {
-    'User-Agent': 'Mozilla/5.0 ArasbaranNewsBot/3.2'
+    'User-Agent':
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36'
   }
 });
 
-const MAX_NEWS_AGE_HOURS = 48;
-
-const LOCAL_AREAS = [
+const AREAS = [
   'ورزقان',
   'خاروانا',
   'اهر',
   'کلیبر',
-  'كليبر',
   'هوراند',
   'خداآفرین',
-  'خدا آفرین',
   'ارسباران'
 ];
 
-const FOREIGN_SOURCE_KEYWORDS = [
+const LOCAL_KEYWORDS = [
+  'ورزقان',
+  'خاروانا',
+  'اهر',
+  'کلیبر',
+  'هوراند',
+  'خداآفرین',
+  'ارسباران',
+  'سونگون',
+  'خمارلو',
+  'قره‌داغ',
+  'قره داغ',
+  'آذربایجان شرقی',
+  'آذربایجان‌شرقی',
+  'جنگل ارسباران',
+  'منطقه ارسباران',
+  'ارس'
+];
+
+const FOREIGN_KEYWORDS = [
   'bbc',
-  'cnn',
-  'reuters',
-  'al jazeera',
-  'aljazeera',
-  'dw',
-  'euronews',
-  'voa',
-  'france24',
-  'france 24',
-  'associated press',
-  'ap news',
-  'new york times',
-  'washington post',
-  'the guardian',
-  'iran international',
   'afghanistan international',
   'afghanistan',
-  'pakistan'
+  'pakistan',
+  'ukraine',
+  'russia',
+  'israel',
+  'america',
+  'american',
+  'trump',
+  'europe',
+  'european',
+  'غزه',
+  'اسرائیل',
+  'اوکراین',
+  'افغانستان',
+  'پاکستان'
 ];
 
 const IRRELEVANT_KEYWORDS = [
-  'فال',
-  'سرگرمی',
-  'سلبریتی',
-  'بازیگر',
-  'خواننده',
-  'فیلم',
-  'سریال',
-  'فوتبال اروپا',
-  'لیگ قهرمانان اروپا',
-  'جام جهانی',
-  'بورس آمریکا',
-  'bitcoin',
-  'crypto',
-  'cryptocurrency'
+  'هالیوود',
+  'بازیگر خارجی',
+  'خواننده خارجی',
+  'سلبریتی خارجی'
 ];
 
-function cleanText(value) {
-  if (!value) {
-    return '';
-  }
+function normalizeText(value) {
+  if (!value) return '';
 
   return String(value)
-    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
-    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
-    .replace(/<[^>]*>/g, ' ')
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/&amp;/gi, '&')
-    .replace(/&quot;/gi, '"')
-    .replace(/&#39;/gi, "'")
-    .replace(/&#x27;/gi, "'")
+    .replace(/ي/g, 'ی')
+    .replace(/ى/g, 'ی')
+    .replace(/ك/g, 'ک')
+    .replace(/ۀ/g, 'ه')
+    .replace(/ة/g, 'ه')
+    .replace(/\u200c/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 }
 
-function parseDate(value) {
-  if (!value) {
-    return null;
-  }
+function cleanHtml(value) {
+  if (!value) return '';
 
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return null;
-  }
-
-  return date;
+  return String(value)
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
-function isRecentNews(item) {
-  const publishedAt = parseDate(
-    item.publishedAt ||
-    item.pubDate ||
-    item.isoDate ||
-    item.date
-  );
-
-  /*
-   * بعضی RSSها تاریخ معتبر نمی‌فرستند.
-   * در این حالت خبر را فقط به دلیل نبود تاریخ حذف نمی‌کنیم.
-   */
-  if (!publishedAt) {
-    console.log(
-      '⚠️ خبر بدون تاریخ معتبر:',
-      item.title || 'بدون عنوان'
-    );
-
-    return true;
-  }
-
-  const now = Date.now();
-
-  const ageHours =
-    (now - publishedAt.getTime()) /
-    (1000 * 60 * 60);
-
-  if (ageHours < -1) {
-    console.log(
-      '⚠️ تاریخ آینده:',
-      item.title || 'بدون عنوان',
-      publishedAt.toISOString()
-    );
-
-    return false;
-  }
-
-  if (ageHours > MAX_NEWS_AGE_HOURS) {
-    console.log(
-      `⏰ خبر قدیمی (${Math.round(ageHours)} ساعت):`,
-      item.title || 'بدون عنوان'
-    );
-
-    return false;
-  }
-
-  return true;
+function decodeHtml(value) {
+  return cleanHtml(value);
 }
 
-function isLocalNews(item) {
-  const text = [
-    item.title || '',
-    item.description || '',
-    item.content || '',
-    item.sourceName || '',
-    item.link || ''
-  ]
-    .join(' ')
-    .toLowerCase();
+function absoluteUrl(base, url) {
+  if (!url) return '';
 
-  return LOCAL_AREAS.some(function(area) {
-    return text.includes(
-      String(area).toLowerCase()
+  try {
+    return new URL(url, base).href;
+  } catch (error) {
+    return '';
+  }
+}
+
+function requestUrl(url) {
+  return new Promise((resolve, reject) => {
+    let parsed;
+
+    try {
+      parsed = new URL(url);
+    } catch (error) {
+      reject(new Error(`URL نامعتبر: ${url}`));
+      return;
+    }
+
+    const client =
+      parsed.protocol === 'https:'
+        ? https
+        : http;
+
+    const request = client.get(
+      parsed,
+      {
+        headers: {
+          'User-Agent':
+            'Mozilla/5.0 ArasbaranNewsBot/2.0',
+          'Accept':
+            'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'Accept-Language':
+            'fa-IR,fa;q=0.9,en;q=0.5'
+        },
+        timeout: 30000
+      },
+      response => {
+        let data = '';
+
+        if (
+          response.statusCode >= 300 &&
+          response.statusCode < 400 &&
+          response.headers.location
+        ) {
+          requestUrl(
+            absoluteUrl(
+              url,
+              response.headers.location
+            )
+          )
+            .then(resolve)
+            .catch(reject);
+
+          return;
+        }
+
+        response.setEncoding('utf8');
+
+        response.on('data', chunk => {
+          data += chunk;
+        });
+
+        response.on('end', () => {
+          if (
+            response.statusCode < 200 ||
+            response.statusCode >= 300
+          ) {
+            reject(
+              new Error(
+                `HTTP ${response.statusCode} برای ${url}`
+              )
+            );
+            return;
+          }
+
+          resolve(data);
+        });
+      }
     );
+
+    request.on('timeout', () => {
+      request.destroy(
+        new Error(`Timeout: ${url}`)
+      );
+    });
+
+    request.on('error', reject);
   });
 }
 
-function isForeignNews(item) {
-  const sourceText = [
-    item.sourceName || '',
-    item.creator || '',
-    item.publisher || '',
-    item.title || '',
-    item.link || ''
-  ]
-    .join(' ')
-    .toLowerCase();
+function parseDate(value) {
+  if (!value) return null;
 
-  return FOREIGN_SOURCE_KEYWORDS.some(
-    function(keyword) {
-      return sourceText.includes(
-        keyword.toLowerCase()
-      );
+  const date = new Date(value);
+
+  if (!Number.isNaN(date.getTime())) {
+    return date;
+  }
+
+  return null;
+}
+
+function findDate($, selector) {
+  const candidates = [];
+
+  $(selector).each((index, element) => {
+    const el = $(element);
+
+    const values = [
+      el.attr('datetime'),
+      el.attr('content'),
+      el.attr('value'),
+      el.text()
+    ];
+
+    for (const value of values) {
+      if (value) {
+        candidates.push(
+          String(value).trim()
+        );
+      }
     }
+  });
+
+  for (const value of candidates) {
+    const date = parseDate(value);
+
+    if (date) return date;
+  }
+
+  return null;
+}
+
+function extractArticleDate($) {
+  const metaSelectors = [
+    'meta[property="article:published_time"]',
+    'meta[property="article:modified_time"]',
+    'meta[name="date"]',
+    'meta[name="pubdate"]',
+    'meta[itemprop="datePublished"]',
+    'time[datetime]'
+  ];
+
+  for (const selector of metaSelectors) {
+    const date = findDate($, selector);
+
+    if (date) return date;
+  }
+
+  return null;
+}
+
+function extractImage($, baseUrl) {
+  const selectors = [
+    'meta[property="og:image"]',
+    'meta[name="twitter:image"]',
+    'meta[itemprop="image"]'
+  ];
+
+  for (const selector of selectors) {
+    const value = $(selector).attr('content');
+
+    if (value) {
+      return absoluteUrl(baseUrl, value);
+    }
+  }
+
+  const image =
+    $('article img').first().attr('src') ||
+    $('.post img').first().attr('src') ||
+    $('main img').first().attr('src');
+
+  return absoluteUrl(baseUrl, image);
+}
+
+function extractDescription($) {
+  const meta =
+    $('meta[name="description"]').attr('content');
+
+  if (meta) {
+    return decodeHtml(meta);
+  }
+
+  const og =
+    $('meta[property="og:description"]')
+      .attr('content');
+
+  if (og) {
+    return decodeHtml(og);
+  }
+
+  const text =
+    $('article').first().text() ||
+    $('.post').first().text() ||
+    $('main').first().text();
+
+  return decodeHtml(text).substring(0, 1000);
+}
+
+function isLocalNews(item) {
+  const text = normalizeText(
+    `${item.title || ''} ${item.description || ''} ${
+      item.sourceName || ''
+    }`
+  ).toLowerCase();
+
+  return LOCAL_KEYWORDS.some(keyword =>
+    text.includes(
+      normalizeText(keyword).toLowerCase()
+    )
+  );
+}
+
+function isForeignNews(item) {
+  const text = normalizeText(
+    `${item.title || ''} ${item.description || ''}`
+  ).toLowerCase();
+
+  return FOREIGN_KEYWORDS.some(keyword =>
+    text.includes(
+      normalizeText(keyword).toLowerCase()
+    )
   );
 }
 
 function isIrrelevantNews(item) {
-  const text = [
-    item.title || '',
-    item.description || '',
-    item.content || ''
-  ]
-    .join(' ')
-    .toLowerCase();
+  const text = normalizeText(
+    `${item.title || ''} ${item.description || ''}`
+  ).toLowerCase();
 
-  return IRRELEVANT_KEYWORDS.some(
-    function(keyword) {
-      return text.includes(
-        keyword.toLowerCase()
-      );
-    }
+  return IRRELEVANT_KEYWORDS.some(keyword =>
+    text.includes(
+      normalizeText(keyword).toLowerCase()
+    )
   );
 }
 
-function extractImageUrl(item) {
-  if (!item) {
-    return '';
+function isRecentNews(item, hours = 48) {
+  if (!item.publishedAt) {
+    return false;
   }
 
-  if (
-    item.enclosure &&
-    item.enclosure.url
-  ) {
-    const type =
-      item.enclosure.type || '';
+  const published =
+    new Date(item.publishedAt).getTime();
 
-    if (
-      !type ||
-      String(type)
-        .toLowerCase()
-        .startsWith('image/')
-    ) {
-      return item.enclosure.url;
-    }
+  if (Number.isNaN(published)) {
+    return false;
   }
 
-  if (
-    item['media:content'] &&
-    item['media:content']['$'] &&
-    item['media:content']['$'].url
-  ) {
-    const media =
-      item['media:content']['$'];
+  const now = Date.now();
 
-    const type = media.type || '';
+  const age =
+    (now - published) /
+    (1000 * 60 * 60);
 
-    if (
-      !type ||
-      String(type)
-        .toLowerCase()
-        .startsWith('image/')
-    ) {
-      return media.url;
-    }
+  if (age < -3) {
+    return false;
   }
 
-  if (
-    item['media:thumbnail'] &&
-    item['media:thumbnail']['$'] &&
-    item['media:thumbnail']['$'].url
-  ) {
-    return item['media:thumbnail']['$'].url;
-  }
-
-  const html = [
-    item.content || '',
-    item.description || '',
-    item.summary || ''
-  ].join(' ');
-
-  const match = html.match(
-    /<img[^>]+src=["']([^"']+)["']/i
-  );
-
-  if (match && match[1]) {
-    return match[1];
-  }
-
-  return '';
-}
-
-function extractVideoUrl(item) {
-  if (!item) {
-    return '';
-  }
-
-  if (
-    item.enclosure &&
-    item.enclosure.url
-  ) {
-    const type =
-      item.enclosure.type || '';
-
-    if (
-      String(type)
-        .toLowerCase()
-        .startsWith('video/')
-    ) {
-      return item.enclosure.url;
-    }
-
-    const url =
-      String(item.enclosure.url)
-        .toLowerCase();
-
-    if (
-      url.endsWith('.mp4') ||
-      url.endsWith('.webm') ||
-      url.endsWith('.mov') ||
-      url.endsWith('.m4v')
-    ) {
-      return item.enclosure.url;
-    }
-  }
-
-  if (
-    item['media:content'] &&
-    item['media:content']['$'] &&
-    item['media:content']['$'].url
-  ) {
-    const media =
-      item['media:content']['$'];
-
-    const type =
-      media.type || '';
-
-    if (
-      String(type)
-        .toLowerCase()
-        .startsWith('video/')
-    ) {
-      return media.url;
-    }
-  }
-
-  return '';
-}
-
-function getSourceName(item, source) {
-  if (
-    item &&
-    item.source &&
-    typeof item.source === 'object' &&
-    item.source._
-  ) {
-    return cleanText(item.source._);
-  }
-
-  if (
-    item &&
-    item.source &&
-    typeof item.source === 'string'
-  ) {
-    return cleanText(item.source);
-  }
-
-  if (item && item.creator) {
-    return cleanText(item.creator);
-  }
-
-  if (source && source.name) {
-    return cleanText(source.name);
-  }
-
-  return '';
-}
-
-function createNewsId(item) {
-  const base = [
-    item.title || '',
-    item.link || '',
-    item.publishedAt || ''
-  ].join('|');
-
-  return crypto
-    .createHash('sha256')
-    .update(base)
-    .digest('hex');
+  return age <= hours;
 }
 
 function normalizeItem(item, source) {
-  const title = cleanText(
-    item.title || ''
+  const title = decodeHtml(
+    item.title ||
+      item.name ||
+      'خبر جدید'
   );
 
-  const description = cleanText(
-    item.contentSnippet ||
-    item.content ||
-    item.summary ||
+  const description = decodeHtml(
     item.description ||
-    ''
+      item.content ||
+      item.summary ||
+      ''
   );
+
+  const link =
+    item.link ||
+    item.url ||
+    '';
 
   const publishedAt =
-    parseDate(
-      item.isoDate ||
-      item.pubDate ||
-      item.published ||
-      item.date
-    );
-
-  const sourceName =
-    getSourceName(item, source);
+    item.publishedAt ||
+    item.pubDate ||
+    item.isoDate ||
+    null;
 
   const imageUrl =
-    extractImageUrl(item);
+    item.imageUrl ||
+    item.image ||
+    '';
 
   const videoUrl =
-    extractVideoUrl(item);
+    item.videoUrl ||
+    '';
 
-  const normalized = {
-    id: createNewsId({
-      title: title,
-      link: item.link || '',
-      publishedAt: publishedAt
-        ? publishedAt.toISOString()
-        : ''
-    }),
+  const sourceName =
+    item.sourceName ||
+    source.name ||
+    '';
 
-    title: title,
+  const id =
+    item.id ||
+    item.guid ||
+    link ||
+    `${source.id}:${title}`;
 
-    description: description,
-
-    content: description,
-
-    link: item.link || '',
-
-    publishedAt: publishedAt
-      ? publishedAt.toISOString()
-      : null,
-
-    sourceName: sourceName,
-
-    creator: item.creator || '',
-
-    publisher: sourceName,
-
-    imageUrl: imageUrl,
-
-    videoUrl: videoUrl,
-
-    area:
-      source && source.name
-        ? source.name
-        : ''
+  return {
+    id: String(id),
+    sourceId: source.id,
+    sourceName,
+    title: title.trim(),
+    description: description.trim(),
+    link,
+    publishedAt,
+    imageUrl,
+    videoUrl,
+    areas: Array.isArray(source.areas)
+      ? source.areas
+      : []
   };
-
-  return normalized;
 }
 
-async function fetchSource(source) {
+async function fetchRssSource(source) {
+  console.log(
+    `RSS دریافت: ${source.name}`
+  );
+
   try {
+    const feed =
+      await parser.parseURL(source.url);
+
+    const items =
+      Array.isArray(feed.items)
+        ? feed.items
+        : [];
+
     console.log(
-      `در حال دریافت: ${source.name}`
+      `RSS ${source.name}: ${items.length} آیتم`
     );
 
-    const feed =
-      await parser.parseURL(
-        source.url
-      );
-
-    if (
-      !feed ||
-      !Array.isArray(feed.items)
-    ) {
-      return [];
-    }
-
-    const maxItems =
-      Number(
-        CONFIG.news.maxItemsPerSource || 10
-      );
-
-    return feed.items
-      .slice(0, maxItems)
-      .map(function(item) {
-
-        const normalized =
-          normalizeItem(
-            item,
-            source
-          );
-
-        console.log(
-          'RSS ITEM:',
-          JSON.stringify({
-            source: source.name,
-            title: normalized.title,
-            publishedAt:
-              normalized.publishedAt,
-            rawPubDate:
-              item.pubDate || null,
-            rawIsoDate:
-              item.isoDate || null
-          })
-        );
-
-        return normalized;
-      });
-
+    return items.map(item =>
+      normalizeItem(
+        {
+          id:
+            item.guid ||
+            item.id ||
+            item.link,
+          title: item.title,
+          description:
+            item.contentSnippet ||
+            item.content ||
+            item.summary,
+          link: item.link,
+          publishedAt:
+            item.isoDate ||
+            item.pubDate,
+          imageUrl:
+            item.enclosure &&
+            item.enclosure.url,
+          sourceName: source.name
+        },
+        source
+      )
+    );
   } catch (error) {
     console.error(
-      `خطا در دریافت منبع ${source.name}:`,
+      `❌ RSS ${source.name}:`,
       error.message
     );
 
@@ -501,142 +484,342 @@ async function fetchSource(source) {
   }
 }
 
-function removeDuplicates(items) {
-  const seen = new Set();
-  const result = [];
+async function fetchHtmlSource(source) {
+  console.log(
+    `HTML دریافت: ${source.name}`
+  );
 
-  for (const item of items) {
-    const key =
-      item.id ||
-      item.link ||
-      item.title;
+  try {
+    const html =
+      await requestUrl(source.url);
 
-    if (!key) {
-      continue;
+    const $ = cheerio.load(html);
+
+    const links = [];
+
+    $('a[href]').each(
+      (index, element) => {
+        const href =
+          $(element).attr('href');
+
+        const title =
+          $(element).text().trim();
+
+        if (!href || !title) return;
+
+        const fullUrl =
+          absoluteUrl(
+            source.url,
+            href
+          );
+
+        if (!fullUrl) return;
+
+        if (
+          fullUrl === source.url ||
+          fullUrl ===
+            `${source.url}/`
+        ) {
+          return;
+        }
+
+        if (
+          !/^https?:\/\//i.test(fullUrl)
+        ) {
+          return;
+        }
+
+        if (
+          links.some(
+            item =>
+              item.url === fullUrl
+          )
+        ) {
+          return;
+        }
+
+        links.push({
+          url: fullUrl,
+          title
+        });
+      }
+    );
+
+    const candidates =
+      links.filter(item => {
+        const text =
+          normalizeText(
+            item.title
+          );
+
+        return (
+          text.length >= 12 &&
+          text.length <= 250
+        );
+      });
+
+    const limited =
+      candidates.slice(
+        0,
+        Number(
+          source.maxItems || 20
+        )
+      );
+
+    const results = [];
+
+    for (const candidate of limited) {
+      try {
+        const article =
+          await fetchArticle(
+            candidate.url,
+            source
+          );
+
+        if (!article) continue;
+
+        if (
+          !article.title ||
+          !article.link
+        ) {
+          continue;
+        }
+
+        results.push(article);
+      } catch (error) {
+        console.error(
+          `⚠️ خطا در مقاله ${candidate.url}:`,
+          error.message
+        );
+      }
     }
 
-    if (seen.has(key)) {
-      continue;
-    }
-
-    seen.add(key);
-    result.push(item);
-  }
-
-  return result;
-}
-
-async function fetchAllNews() {
-  const sources =
-    getGoogleNewsSources();
-
-  if (!sources.length) {
     console.log(
-      'هیچ منبع فعالی پیدا نشد.'
+      `HTML ${source.name}: ${results.length} آیتم`
+    );
+
+    return results;
+  } catch (error) {
+    console.error(
+      `❌ HTML ${source.name}:`,
+      error.message
     );
 
     return [];
   }
+}
 
-  const allItems = [];
+async function fetchArticle(
+  url,
+  source
+) {
+  const html =
+    await requestUrl(url);
 
-  for (const source of sources) {
-    const items =
-      await fetchSource(source);
+  const $ = cheerio.load(html);
 
-    for (const item of items) {
-      allItems.push(item);
-    }
+  let title =
+    $('meta[property="og:title"]')
+      .attr('content') ||
+    $('h1').first().text() ||
+    $('title').text();
+
+  title = decodeHtml(title);
+
+  if (!title) return null;
+
+  const description =
+    extractDescription($);
+
+  const publishedAt =
+    extractArticleDate($);
+
+  const imageUrl =
+    extractImage($, url);
+
+  const canonical =
+    $('link[rel="canonical"]')
+      .attr('href');
+
+  const link =
+    absoluteUrl(
+      url,
+      canonical
+    ) || url;
+
+  return normalizeItem(
+    {
+      id: link,
+      title,
+      description,
+      link,
+      publishedAt:
+        publishedAt
+          ? publishedAt.toISOString()
+          : null,
+      imageUrl,
+      sourceName: source.name
+    },
+    source
+  );
+}
+
+async function fetchSource(source) {
+  if (!source || source.enabled === false) {
+    return [];
+  }
+
+  if (source.type === 'html') {
+    return fetchHtmlSource(source);
+  }
+
+  if (
+    source.type === 'rss' ||
+    source.type === 'google-news'
+  ) {
+    return fetchRssSource(source);
   }
 
   console.log(
-    `کل اخبار خام: ${allItems.length}`
+    `⚠️ نوع منبع ناشناخته: ${source.type}`
   );
 
-  let filtered =
-    allItems.filter(
-      isRecentNews
-    );
+  return [];
+}
+
+function deduplicate(items) {
+  const map = new Map();
+
+  for (const item of items) {
+    const key =
+      item.link ||
+      item.id ||
+      `${item.title}:${item.publishedAt}`;
+
+    if (!map.has(key)) {
+      map.set(key, item);
+    }
+  }
+
+  return Array.from(map.values());
+}
+
+async function fetchAllNews() {
+  const sources =
+    loadSources();
+
+  let rawItems = [];
 
   console.log(
-    `بعد از فیلتر 48 ساعت: ${filtered.length}`
+    `تعداد منابع فعال: ${sources.length}`
   );
 
-  /*
-   * خبر باید مربوط به مناطق هدف باشد.
-   */
-  filtered =
-    filtered.filter(
-      isLocalNews
+  for (const source of sources) {
+    console.log(
+      `در حال دریافت: ${source.name}`
     );
 
+    const items =
+      await fetchSource(source);
+
+    rawItems =
+      rawItems.concat(items);
+  }
+
   console.log(
-    `بعد از فیلتر محلی: ${filtered.length}`
+    `کل اخبار خام: ${rawItems.length}`
   );
 
-  /*
-   * حذف منابع خارجی.
-   */
-  filtered =
-    filtered.filter(function(item) {
-      return !isForeignNews(item);
+  const unique =
+    deduplicate(rawItems);
+
+  console.log(
+    `بعد از حذف تکراری: ${unique.length}`
+  );
+
+  const recent =
+    unique.filter(item => {
+      const ok =
+        isRecentNews(item, 48);
+
+      if (!ok) {
+        if (item.publishedAt) {
+          const age =
+            (
+              Date.now() -
+              new Date(
+                item.publishedAt
+              ).getTime()
+            ) /
+            (1000 * 60 * 60);
+
+          console.log(
+            `⏰ خبر قدیمی (${Math.round(
+              age
+            )} ساعت): ${item.title}`
+          );
+        }
+
+        return false;
+      }
+
+      return true;
     });
 
   console.log(
-    `بعد از حذف منابع خارجی: ${filtered.length}`
+    `بعد از فیلتر 48 ساعت: ${recent.length}`
   );
 
-  /*
-   * حذف موضوعات نامرتبط.
-   */
-  filtered =
-    filtered.filter(function(item) {
-      return !isIrrelevantNews(item);
-    });
+  const local =
+    recent.filter(item =>
+      isLocalNews(item)
+    );
 
   console.log(
-    `بعد از حذف اخبار نامرتبط: ${filtered.length}`
+    `بعد از فیلتر محلی: ${local.length}`
   );
 
-  filtered =
-    removeDuplicates(filtered);
+  const nonForeign =
+    local.filter(item =>
+      !isForeignNews(item)
+    );
 
-  filtered.sort(function(a, b) {
-    const dateA =
-      a.publishedAt
-        ? new Date(
-            a.publishedAt
-          ).getTime()
-        : 0;
+  console.log(
+    `بعد از حذف منابع خارجی: ${nonForeign.length}`
+  );
 
-    const dateB =
-      b.publishedAt
-        ? new Date(
-            b.publishedAt
-          ).getTime()
-        : 0;
+  const relevant =
+    nonForeign.filter(item =>
+      !isIrrelevantNews(item)
+    );
 
-    return dateB - dateA;
-  });
+  console.log(
+    `بعد از حذف اخبار نامرتبط: ${relevant.length}`
+  );
 
-  const maxTotal =
+  relevant.sort(
+    (a, b) =>
+      new Date(b.publishedAt || 0) -
+      new Date(a.publishedAt || 0)
+  );
+
+  const max =
     Number(
-      CONFIG.news.maxTotalItems || 30
+      process.env.MAX_TOTAL_ITEMS || 30
     );
 
-  return filtered.slice(
-    0,
-    maxTotal
-  );
+  return relevant.slice(0, max);
 }
 
 module.exports = {
   fetchAllNews,
+  fetchSource,
+  fetchRssSource,
+  fetchHtmlSource,
   isRecentNews,
   isLocalNews,
   isForeignNews,
   isIrrelevantNews,
-  extractImageUrl,
-  extractVideoUrl,
+  deduplicate,
   normalizeItem
 };
