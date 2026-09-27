@@ -3,8 +3,73 @@
 const { fetchAllNews } = require('./news');
 const { formatNews } = require('./formatter');
 const { hasNews, saveNews } = require('./storage');
-const { sendMessage } = require('./telegram');
+
+const {
+  sendMessage,
+  sendPhoto,
+  sendVideo
+} = require('./telegram');
+
 const { getConfig } = require('./config');
+
+async function sendNewsItem(item, message) {
+  /*
+   * اگر ویدئو وجود داشته باشد، ابتدا ویدئو ارسال می‌شود.
+   */
+  if (item.videoUrl) {
+    try {
+      await sendVideo(
+        item.videoUrl,
+        message
+      );
+
+      console.log('🎥 ویدئو ارسال شد.');
+
+      return 'video';
+    } catch (error) {
+      console.error(
+        '⚠️ ارسال ویدئو ناموفق بود:',
+        error.message
+      );
+
+      /*
+       * اگر ویدئو نشد، در صورت وجود عکس
+       * عکس را امتحان می‌کنیم.
+       */
+    }
+  }
+
+  /*
+   * اگر عکس وجود داشته باشد.
+   */
+  if (item.imageUrl) {
+    try {
+      await sendPhoto(
+        item.imageUrl,
+        message
+      );
+
+      console.log('🖼️ عکس ارسال شد.');
+
+      return 'photo';
+    } catch (error) {
+      console.error(
+        '⚠️ ارسال عکس ناموفق بود:',
+        error.message
+      );
+    }
+  }
+
+  /*
+   * اگر رسانه وجود نداشت یا ارسال آن شکست خورد،
+   * متن خبر ارسال می‌شود.
+   */
+  await sendMessage(message);
+
+  console.log('📝 متن خبر ارسال شد.');
+
+  return 'text';
+}
 
 async function main() {
   console.log('================================');
@@ -22,7 +87,10 @@ async function main() {
   );
 
   if (news.length === 0) {
-    console.log('هیچ خبر جدیدی دریافت نشد.');
+    console.log(
+      'هیچ خبر جدید و واجد شرایطی دریافت نشد.'
+    );
+
     return;
   }
 
@@ -35,54 +103,105 @@ async function main() {
       const id = item.id || item.link;
 
       if (!id) {
+        console.log(
+          '⚠️ خبر بدون شناسه رد شد.'
+        );
+
         continue;
       }
 
+      /*
+       * جلوگیری از ارسال خبر تکراری
+       */
       if (hasNews(id)) {
         skipped++;
+
+        console.log(
+          `⏭️ خبر تکراری: ${item.title}`
+        );
+
         continue;
       }
 
+      /*
+       * ساخت متن نهایی خبر
+       */
       const message = formatNews(item, {
         timezone: config.timezone,
-        maxDescriptionLength: 500
+        maxDescriptionLength: 650
       });
 
       if (!message) {
+        console.log(
+          '⚠️ متن خبر خالی است.'
+        );
+
         continue;
       }
 
       console.log(
-        `در حال ارسال: ${item.title}`
+        '--------------------------------'
       );
 
-      await sendMessage(message);
+      console.log(
+        `📰 خبر: ${item.title}`
+      );
 
+      if (item.imageUrl) {
+        console.log(
+          `🖼️ تصویر: ${item.imageUrl}`
+        );
+      }
+
+      if (item.videoUrl) {
+        console.log(
+          `🎥 ویدئو: ${item.videoUrl}`
+        );
+      }
+
+      /*
+       * ارسال خبر
+       */
+      const type = await sendNewsItem(
+        item,
+        message
+      );
+
+      /*
+       * فقط بعد از ارسال موفق،
+       * خبر در تاریخچه ذخیره می‌شود.
+       */
       saveNews(id);
 
       sent++;
 
       console.log(
-        `✅ ارسال شد: ${item.title}`
+        `✅ خبر با موفقیت ارسال شد (${type})`
       );
 
+      /*
+       * فاصله بین ارسال خبرها
+       */
       await new Promise(
-        resolve => setTimeout(resolve, 1200)
+        resolve => setTimeout(resolve, 1500)
       );
 
     } catch (error) {
       errors++;
 
       console.error(
-        `❌ خطا در ارسال: ${item.title || 'بدون عنوان'}`
+        `❌ خطا در ارسال خبر: ${
+          item.title || 'بدون عنوان'
+        }`
       );
 
       console.error(
-        error.message
+        error.stack || error.message
       );
     }
   }
 
+  console.log('');
   console.log('================================');
   console.log('گزارش نهایی');
   console.log('================================');
@@ -107,7 +226,11 @@ async function main() {
 }
 
 main().catch(error => {
+  console.error('');
   console.error('FATAL ERROR:');
-  console.error(error.stack || error.message);
+  console.error(
+    error.stack || error.message
+  );
+
   process.exit(1);
 });
