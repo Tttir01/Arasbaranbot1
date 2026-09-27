@@ -13,10 +13,103 @@ const parser = new Parser({
 
   headers: {
     'User-Agent':
-      'Mozilla/5.0 ArasbaranNewsBot/2.0'
+      'Mozilla/5.0 ArasbaranNewsBot/3.0'
   }
 });
 
+/*
+ * فقط اخبار 48 ساعت اخیر
+ */
+const MAX_NEWS_AGE_HOURS = 48;
+
+/*
+ * مناطق مجاز
+ */
+const LOCAL_AREAS = [
+  'ورزقان',
+  'خاروانا',
+  'اهر',
+  'کلیبر',
+  'كليبر',
+  'هوراند',
+  'خداآفرین',
+  'خدا آفرین',
+  'ارسباران'
+];
+
+/*
+ * کلمات و نشانه‌های منابع خارجی
+ */
+const FOREIGN_KEYWORDS = [
+  'afghanistan',
+  'pakistan',
+  'india',
+  'iran international',
+  'afghanistan international',
+  'bbc',
+  'bbc news',
+  'cnn',
+  'reuters',
+  'al jazeera',
+  'aljazeera',
+  'dw',
+  'euronews',
+  'voa',
+  'france24',
+  'associated press',
+  'ap news',
+  'new york times',
+  'washington post',
+  'guardian',
+  'facebook.com',
+  'youtube.com',
+  'instagram.com'
+];
+
+/*
+ * کلمات محتوایی خارجی
+ */
+const FOREIGN_CONTENT_KEYWORDS = [
+  'افغانستان',
+  'پاکستان',
+  'هند',
+  'اسرائیل',
+  'آمریکا',
+  'انگلیس',
+  'بریتانیا',
+  'روسیه',
+  'اوکراین',
+  'غزه',
+  'فلسطین',
+  'لبنان',
+  'سوریه',
+  'عراق',
+  'یمن'
+];
+
+/*
+ * موضوعات کاملاً نامرتبط
+ */
+const IRRELEVANT_KEYWORDS = [
+  'فال',
+  'سرگرمی',
+  'سلبریتی',
+  'بازیگر',
+  'خواننده',
+  'فیلم',
+  'سریال',
+  'فوتبال اروپا',
+  'لیگ قهرمانان اروپا',
+  'جام جهانی',
+  'بورس آمریکا',
+  'bitcoin',
+  'crypto',
+  'cryptocurrency'
+];
+
+/*
+ * ساخت شناسه یکتا
+ */
 function createNewsId(item) {
   const base = [
     item.title || '',
@@ -31,12 +124,23 @@ function createNewsId(item) {
     .substring(0, 32);
 }
 
+/*
+ * پاک‌سازی HTML و RSS
+ */
 function stripHtml(text) {
   if (!text) {
     return '';
   }
 
   return String(text)
+    .replace(
+      /<script[\s\S]*?<\/script>/gi,
+      ' '
+    )
+    .replace(
+      /<style[\s\S]*?<\/style>/gi,
+      ' '
+    )
     .replace(/<[^>]*>/g, ' ')
     .replace(/&nbsp;/gi, ' ')
     .replace(/&amp;/gi, '&')
@@ -47,245 +151,111 @@ function stripHtml(text) {
     .trim();
 }
 
+/*
+ * پاک‌سازی نام رسانه و عنوان
+ */
+function cleanText(text) {
+  return stripHtml(text)
+    .replace(
+      /\s*[-–—|]\s*(facebook\.com|youtube\.com|instagram\.com)\s*$/i,
+      ''
+    )
+    .trim();
+}
+
+/*
+ * استخراج نام منبع
+ */
 function extractSourceName(item, source) {
   if (item.creator) {
-    return stripHtml(item.creator);
+    return cleanText(item.creator);
   }
 
   if (item.author) {
-    return stripHtml(item.author);
+    return cleanText(item.author);
   }
 
   if (item['dc:creator']) {
-    return stripHtml(item['dc:creator']);
+    return cleanText(
+      item['dc:creator']
+    );
+  }
+
+  /*
+   * در Google News معمولاً نام ناشر
+   * داخل title یا source وجود دارد.
+   */
+  if (
+    item.source &&
+    typeof item.source === 'object'
+  ) {
+    if (item.source.title) {
+      return cleanText(
+        item.source.title
+      );
+    }
   }
 
   if (source && source.name) {
-    return source.name;
+    return cleanText(
+      source.name
+    );
   }
 
-  return 'منبع خبری';
+  return '';
 }
 
-function normalizeItem(item, source) {
-  const title = stripHtml(item.title || '');
-
-  const description = stripHtml(
-    item.contentSnippet ||
-    item.content ||
-    item.description ||
-    ''
-  );
-
-  const link = item.link || '';
-
-  const publishedAt =
+/*
+ * استخراج تاریخ انتشار
+ */
+function getPublishedDate(item) {
+  const value =
     item.isoDate ||
     item.pubDate ||
-    new Date().toISOString();
+    item.published ||
+    item.updated;
 
-  const sourceName =
-    extractSourceName(item, source);
-
-  const id = createNewsId({
-    title,
-    link,
-    publishedAt
-  });
-
-  return {
-    id,
-    title,
-    description,
-    link,
-    publishedAt,
-    sourceName,
-    sourceId: source.id,
-    sourceType: source.type,
-    areas: Array.isArray(source.areas)
-      ? source.areas
-      : []
-  };
-}
-
-async function fetchSource(source) {
-  console.log('');
-  console.log('--------------------------------');
-  console.log(`در حال بررسی منبع: ${source.name}`);
-  console.log(`URL: ${source.url}`);
-
-  try {
-    const feed = await parser.parseURL(
-      source.url
-    );
-
-    const items = Array.isArray(feed.items)
-      ? feed.items
-      : [];
-
-    console.log(
-      `تعداد آیتم RSS: ${items.length}`
-    );
-
-    const news = items
-      .slice(
-        0,
-        CONFIG.news.maxItemsPerSource
-      )
-      .map(item =>
-        normalizeItem(item, source)
-      )
-      .filter(item => item.title);
-
-    console.log(
-      `تعداد خبر معتبر: ${news.length}`
-    );
-
-    if (news.length > 0) {
-      console.log(
-        `اولین خبر: ${news[0].title}`
-      );
-    }
-
-    return news;
-
-  } catch (error) {
-    console.error(
-      `❌ خطا در منبع ${source.name}`
-    );
-
-    console.error(
-      error.message
-    );
-
-    return [];
-  }
-}
-
-async function fetchAllNews() {
-  console.log('');
-  console.log('================================');
-  console.log('شروع دریافت اخبار');
-  console.log('================================');
-
-  const sources =
-    getGoogleNewsSources();
-
-  console.log(
-    `تعداد منابع فعال: ${sources.length}`
-  );
-
-  const allNews = [];
-
-  for (const source of sources) {
-    const news =
-      await fetchSource(source);
-
-    allNews.push(...news);
+  if (!value) {
+    return null;
   }
 
-  console.log('');
-  console.log('================================');
-  console.log(
-    `مجموع اخبار دریافت‌شده: ${allNews.length}`
-  );
-  console.log('================================');
+  const date = new Date(value);
 
-  return allNews;
-}
-
-function removeDuplicates(items) {
-  const seen = new Set();
-  const result = [];
-
-  for (const item of items) {
-    if (!item || !item.id) {
-      continue;
-    }
-
-    if (seen.has(item.id)) {
-      continue;
-    }
-
-    seen.add(item.id);
-    result.push(item);
+  if (Number.isNaN(date.getTime())) {
+    return null;
   }
 
-  return result;
+  return date;
 }
 
-function sortByDate(items) {
-  return [...items].sort((a, b) => {
-    const dateA =
-      new Date(a.publishedAt).getTime() || 0;
-
-    const dateB =
-      new Date(b.publishedAt).getTime() || 0;
-
-    return dateB - dateA;
-  });
-}
-
-function limitNews(items, maxItems) {
-  const limit =
-    Number(maxItems) > 0
-      ? Number(maxItems)
-      : CONFIG.news.maxTotalItems;
-
-  return items.slice(0, limit);
-}
-
-async function collectNews() {
-  const news =
-    await fetchAllNews();
-
-  const uniqueNews =
-    removeDuplicates(news);
-
-  const sortedNews =
-    sortByDate(uniqueNews);
-
-  return limitNews(
-    sortedNews,
-    CONFIG.news.maxTotalItems
-  );
-}
-
-async function fetchNewsByArea(area) {
-  const sources =
-    getGoogleNewsSources().filter(
-      source => {
-        if (!Array.isArray(source.areas)) {
-          return false;
-        }
-
-        return source.areas.includes(area);
-      }
-    );
-
-  const results = [];
-
-  for (const source of sources) {
-    const news =
-      await fetchSource(source);
-
-    results.push(...news);
+/*
+ * بررسی اینکه خبر حداکثر 48 ساعت عمر دارد
+ */
+function isRecentNews(date) {
+  if (!date) {
+    return false;
   }
 
-  return limitNews(
-    sortByDate(
-      removeDuplicates(results)
-    ),
-    CONFIG.news.maxTotalItems
-  );
+  const now = Date.now();
+
+  const age =
+    now - date.getTime();
+
+  const maxAge =
+    MAX_NEWS_AGE_HOURS *
+    60 *
+    60 *
+    1000;
+
+  /*
+   * خبر آینده نیز پذیرفته نمی‌شود
+   */
+  if (age < 0) {
+    return false;
+  }
+
+  return age <= maxAge;
 }
 
-module.exports = {
-  createNewsId,
-  fetchSource,
-  fetchAllNews,
-  collectNews,
-  fetchNewsByArea,
-  removeDuplicates,
-  sortByDate
-};
+/*
+ * بررسی منطقه‌ای
