@@ -4,8 +4,13 @@ const Parser = require('rss-parser');
 const http = require('http');
 const https = require('https');
 const crypto = require('crypto');
+const cheerio = require('cheerio');
 
 const { loadSources } = require('./sources');
+
+/* =========================================================
+   CONFIG
+========================================================= */
 
 const parser = new Parser({
   timeout: 30000,
@@ -25,8 +30,19 @@ const MAX_NEWS_AGE_HOURS =
 const MAX_ITEMS_PER_SOURCE =
   Number(process.env.MAX_ITEMS_PER_SOURCE || 20);
 
+const MAX_TOTAL_ITEMS =
+  Number(process.env.MAX_TOTAL_ITEMS || 30);
+
+const REQUEST_TIMEOUT =
+  Number(process.env.REQUEST_TIMEOUT || 25000);
+
+/* =========================================================
+   LOCAL KEYWORDS
+========================================================= */
+
 const LOCAL_KEYWORDS = [
   'ورزقان',
+  'ورزغان',
   'خاروانا',
   'اهر',
   'کلیبر',
@@ -36,13 +52,18 @@ const LOCAL_KEYWORDS = [
   'خدا آفرین',
   'خداآفرين',
   'ارسباران',
-  'سونگون',
-  'مس سونگون',
   'قره داغ',
   'قره‌داغ',
+  'قره داغ',
+  'سونگون',
+  'مس سونگون',
   'آذربایجان شرقی',
   'آذربايجان شرقي'
 ];
+
+/* =========================================================
+   FOREIGN KEYWORDS
+========================================================= */
 
 const FOREIGN_KEYWORDS = [
   'united states',
@@ -61,7 +82,18 @@ const FOREIGN_KEYWORDS = [
   'russia',
   'china',
   'japan',
-  'india'
+  'india',
+  'ایالات متحده',
+  'آمریکا',
+  'انگلیس',
+  'بریتانیا',
+  'فرانسه',
+  'آلمان',
+  'اسرائیل',
+  'اوکراین',
+  'روسیه',
+  'چین',
+  'ژاپن'
 ];
 
 /* =========================================================
@@ -75,15 +107,21 @@ function httpGet(url, redirects = 0) {
       return;
     }
 
-    if (redirects > 6) {
+    if (redirects > 8) {
       reject(new Error('Redirect بیش از حد مجاز'));
       return;
     }
 
-    const client =
-      url.startsWith('https://')
+    let client;
+
+    try {
+      client = url.startsWith('https://')
         ? https
         : http;
+    } catch (error) {
+      reject(error);
+      return;
+    }
 
     const req = client.get(
       url,
@@ -91,17 +129,27 @@ function httpGet(url, redirects = 0) {
         headers: {
           'User-Agent':
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/128 Safari/537.36',
+
           'Accept':
             'application/rss+xml, application/xml, text/xml, text/html;q=0.9, */*;q=0.8',
+
           'Accept-Language':
             'fa-IR,fa;q=0.9,en-US;q=0.7,en;q=0.5',
-          'Cache-Control': 'no-cache'
+
+          'Cache-Control':
+            'no-cache'
         },
-        timeout: 30000
+
+        timeout: REQUEST_TIMEOUT
       },
+
       response => {
         const status =
           response.statusCode || 0;
+
+        /*
+         * Redirect
+         */
 
         if (
           status >= 300 &&
@@ -145,7 +193,10 @@ function httpGet(url, redirects = 0) {
           'end',
           () => {
             console.log(
-              `   HTTP ${status} | ${Buffer.byteLength(data, 'utf8')} bytes | ${url}`
+              `   HTTP ${status} | ${Buffer.byteLength(
+                data,
+                'utf8'
+              )} bytes`
             );
 
             if (
@@ -157,6 +208,7 @@ function httpGet(url, redirects = 0) {
                   `HTTP ${status}`
                 )
               );
+
               return;
             }
 
@@ -185,21 +237,238 @@ function httpGet(url, redirects = 0) {
 }
 
 /* =========================================================
+   HTML HELPERS
+========================================================= */
+
+function decodeHtml(text) {
+  return String(text || '')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&#(\d+);/g, (_, n) =>
+      String.fromCharCode(Number(n))
+    );
+}
+
+function stripHtml(text) {
+  return decodeHtml(
+    String(text || '')
+      .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+      .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/p>/gi, '\n')
+      .replace(/<[^>]*>/g, ' ')
+  )
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function cleanText(text) {
+  return stripHtml(text)
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/* =========================================================
    DATE
 ========================================================= */
 
 function parseDate(value) {
-  if (!value) return null;
+  if (!value) {
+    return null;
+  }
 
-  const d =
-    new Date(value);
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime())
+      ? null
+      : value;
+  }
+
+  const text =
+    String(value).trim();
+
+  if (!text) {
+    return null;
+  }
+
+  /*
+   * ISO / RFC
+   */
+
+  let date =
+    new Date(text);
 
   if (
     !Number.isNaN(
-      d.getTime()
+      date.getTime()
     )
   ) {
-    return d;
+    return date;
+  }
+
+  /*
+   * Persian / Jalali date
+   * مانند:
+   * 05 مهر 1405
+   * 1405/07/05
+   */
+
+  const months = {
+    'فروردین': 1,
+    'اردیبهشت': 2,
+    'خرداد': 3,
+    'تیر': 4,
+    'مرداد': 5,
+    'شهریور': 6,
+    'مهر': 7,
+    'آبان': 8,
+    'آذر': 9,
+    'دی': 10,
+    'بهمن': 11,
+    'اسفند': 12
+  };
+
+  const normalized =
+    text
+      .replace(
+        /۰/g,
+        '0'
+      )
+      .replace(
+        /۱/g,
+        '1'
+      )
+      .replace(
+        /۲/g,
+        '2'
+      )
+      .replace(
+        /۳/g,
+        '3'
+      )
+      .replace(
+        /۴/g,
+        '4'
+      )
+      .replace(
+        /۵/g,
+        '5'
+      )
+      .replace(
+        /۶/g,
+        '6'
+      )
+      .replace(
+        /۷/g,
+        '7'
+      )
+      .replace(
+        /۸/g,
+        '8'
+      )
+      .replace(
+        /۹/g,
+        '9'
+      );
+
+  const numeric =
+    normalized.match(
+      /(14\d{2})[\/\-](\d{1,2})[\/\-](\d{1,2})/
+    );
+
+  if (numeric) {
+    const y =
+      Number(numeric[1]);
+
+    const m =
+      Number(numeric[2]);
+
+    const d =
+      Number(numeric[3]);
+
+    /*
+     * تبدیل تقریبی جلالی به میلادی.
+     * برای فیلتر 48 ساعته کافی است.
+     */
+
+    const gy =
+      y + 621;
+
+    const gm =
+      Math.min(
+        12,
+        Math.max(
+          1,
+          m + 3
+        )
+      );
+
+    date =
+      new Date(
+        Date.UTC(
+          gy,
+          gm - 1,
+          Math.min(
+            d,
+            28
+          )
+        )
+      );
+
+    if (
+      !Number.isNaN(
+        date.getTime()
+      )
+    ) {
+      return date;
+    }
+  }
+
+  const named =
+    normalized.match(
+      /(\d{1,2})\s+(فروردین|اردیبهشت|خرداد|تیر|مرداد|شهریور|مهر|آبان|آذر|دی|بهمن|اسفند)\s+(14\d{2})/
+    );
+
+  if (named) {
+    const day =
+      Number(named[1]);
+
+    const month =
+      months[named[2]];
+
+    const year =
+      Number(named[3]);
+
+    if (
+      month &&
+      year
+    ) {
+      date =
+        new Date(
+          Date.UTC(
+            year + 621,
+            Math.min(
+              11,
+              month + 2
+            ),
+            Math.min(
+              day,
+              28
+            )
+          )
+        );
+
+      if (
+        !Number.isNaN(
+          date.getTime()
+        )
+      ) {
+        return date;
+      }
+    }
   }
 
   return null;
@@ -211,6 +480,18 @@ function parseDate(value) {
 
 function extractImage(item) {
   try {
+    if (
+      item.image
+    ) {
+      return item.image;
+    }
+
+    if (
+      item.imageUrl
+    ) {
+      return item.imageUrl;
+    }
+
     if (
       item.enclosure &&
       item.enclosure.url
@@ -240,13 +521,13 @@ function extractImage(item) {
       item.description ||
       '';
 
-    const m =
-      html.match(
-        /<img[^>]+src=["']([^"']+)["']/i
+    const match =
+      String(html).match(
+        /<img[^>]+(?:src|data-src)=["']([^"']+)["']/i
       );
 
-    return m
-      ? m[1]
+    return match
+      ? match[1]
       : null;
   } catch {
     return null;
@@ -257,28 +538,29 @@ function extractImage(item) {
    NORMALIZE
 ========================================================= */
 
-function normalizeItem(item, source) {
+function normalizeItem(
+  item,
+  source
+) {
   const title =
-    String(
-      item.title || ''
-    )
-      .replace(/\s+/g, ' ')
-      .trim();
+    cleanText(
+      item.title ||
+      ''
+    );
 
   const description =
-    String(
+    cleanText(
       item.contentSnippet ||
       item.content ||
       item.description ||
+      item.summary ||
       ''
-    )
-      .replace(/<[^>]*>/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
+    );
 
   const link =
     item.link ||
     item.guid ||
+    source.url ||
     '';
 
   const publishedAt =
@@ -287,24 +569,69 @@ function normalizeItem(item, source) {
       item.pubDate ||
       item.published ||
       item.updated ||
-      item.date
+      item.date ||
+      item.publishedAt
     );
 
-  return {
-    id: crypto
+  const image =
+    extractImage(
+      item
+    );
+
+  const sourceName =
+    source.name ||
+    item.sourceName ||
+    'منبع نامشخص';
+
+  /*
+   * ID پایدارتر:
+   * URL + عنوان نرمال‌شده
+   */
+
+  const normalizedTitle =
+    title
+      .toLowerCase()
+      .replace(
+        /[\u200c\u200f]/g,
+        ''
+      )
+      .replace(
+        /[^\p{L}\p{N}]+/gu,
+        ' '
+      )
+      .trim();
+
+  const id =
+    crypto
       .createHash('sha1')
       .update(
-        `${title}|${link}|${source.name}`
+        `${normalizedTitle}|${link}`
       )
-      .digest('hex'),
+      .digest('hex');
+
+  return {
+    id,
 
     title,
-    description,
-    link,
-    image: extractImage(item),
 
-    sourceName:
-      source.name || 'منبع نامشخص',
+    description,
+
+    link,
+
+    /*
+     * هر دو نام برای سازگاری با index.js
+     */
+
+    image,
+
+    imageUrl:
+      image || null,
+
+    videoUrl:
+      item.videoUrl ||
+      null,
+
+    sourceName,
 
     publishedAt:
       publishedAt
@@ -317,6 +644,7 @@ function normalizeItem(item, source) {
       item.published ||
       item.updated ||
       item.date ||
+      item.publishedAt ||
       null
   };
 }
@@ -325,21 +653,28 @@ function normalizeItem(item, source) {
    LOCAL FILTER
 ========================================================= */
 
-function containsLocalKeyword(text) {
+function containsLocalKeyword(
+  text
+) {
   const value =
-    String(text || '')
+    String(
+      text || ''
+    )
       .toLowerCase();
 
   return LOCAL_KEYWORDS.some(
     keyword =>
       value.includes(
-        String(keyword)
-          .toLowerCase()
+        String(
+          keyword
+        ).toLowerCase()
       )
   );
 }
 
-function isLocalNews(item) {
+function isLocalNews(
+  item
+) {
   const text = [
     item.title,
     item.description,
@@ -349,28 +684,42 @@ function isLocalNews(item) {
     .filter(Boolean)
     .join(' ');
 
-  return containsLocalKeyword(text);
+  return containsLocalKeyword(
+    text
+  );
 }
 
 /* =========================================================
    FOREIGN FILTER
 ========================================================= */
 
-function isForeignNews(item) {
-  const title =
-    String(
-      item.title || ''
-    ).toLowerCase();
+function isForeignNews(
+  item
+) {
+  const text = [
+    item.title,
+    item.description
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+
+  /*
+   * اگر خود خبر نشانه محلی دارد،
+   * آن را خارجی حساب نکن.
+   */
 
   if (
-    containsLocalKeyword(title)
+    containsLocalKeyword(
+      text
+    )
   ) {
     return false;
   }
 
   return FOREIGN_KEYWORDS.some(
     keyword =>
-      title.includes(
+      text.includes(
         keyword.toLowerCase()
       )
   );
@@ -380,8 +729,18 @@ function isForeignNews(item) {
    RECENT
 ========================================================= */
 
-function isRecentNews(item) {
-  if (!item.publishedAt) {
+function isRecentNews(
+  item
+) {
+  if (
+    !item.publishedAt
+  ) {
+    /*
+     * اخبار بدون تاریخ حذف نمی‌شوند.
+     * چون بعضی کانال‌های محلی تاریخ را
+     * در HTML به شکل غیر استاندارد قرار می‌دهند.
+     */
+
     return true;
   }
 
@@ -390,10 +749,23 @@ function isRecentNews(item) {
       item.publishedAt
     );
 
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return true;
+  }
+
   const ageHours =
-    (Date.now() -
-      date.getTime()) /
-    3600000;
+    (
+      Date.now() -
+      date.getTime()
+    ) / 3600000;
+
+  /*
+   * کمی آینده را تحمل می‌کنیم.
+   */
 
   if (
     ageHours < -24
@@ -408,10 +780,12 @@ function isRecentNews(item) {
 }
 
 /* =========================================================
-   GOOGLE QUERY
+   GOOGLE NEWS
 ========================================================= */
 
-function buildGoogleQueries(source) {
+function buildGoogleQueries(
+  source
+) {
   const base =
     String(
       source.query ||
@@ -433,49 +807,62 @@ function buildGoogleQueries(source) {
 
   add(base);
 
-  if (/ورزقان/.test(base)) {
-    add('ورزقان آذربایجان شرقی');
+  if (
+    /ورزقان/.test(base)
+  ) {
+    add('ورزقان');
     add('ورزقان سونگون');
-    add('site:tasnimnews.ir ورزقان');
+    add('ورزقان آذربایجان شرقی');
   }
 
-  if (/خاروانا/.test(base)) {
+  if (
+    /خاروانا/.test(base)
+  ) {
+    add('خاروانا');
     add('خاروانا ورزقان');
-    add('خاروانا آذربایجان شرقی');
   }
 
-  if (/اهر/.test(base)) {
+  if (
+    /اهر/.test(base)
+  ) {
+    add('اهر');
     add('اهر آذربایجان شرقی');
-    add('شهرستان اهر');
   }
 
   if (
     /کلیبر/.test(base) ||
     /كليبر/.test(base)
   ) {
+    add('کلیبر');
     add('کلیبر آذربایجان شرقی');
-    add('شهرستان کلیبر');
   }
 
-  if (/هوراند/.test(base)) {
+  if (
+    /هوراند/.test(base)
+  ) {
+    add('هوراند');
     add('هوراند آذربایجان شرقی');
-    add('شهرستان هوراند');
   }
 
   if (
     /خداآفرین/.test(base) ||
     /خدا آفرین/.test(base)
   ) {
+    add('خداآفرین');
     add('خداآفرین آذربایجان شرقی');
-    add('شهرستان خداآفرین');
   }
 
-  if (/ارسباران/.test(base)) {
+  if (
+    /ارسباران/.test(base)
+  ) {
     add('ارسباران');
     add('ارسباران آذربایجان شرقی');
   }
 
-  return result.slice(0, 5);
+  return result.slice(
+    0,
+    5
+  );
 }
 
 function buildGoogleNewsUrl(
@@ -507,11 +894,9 @@ async function fetchRssUrl(
 
   try {
     const xml =
-      await httpGet(url);
-
-    console.log(
-      `   RSS bytes: ${xml.length}`
-    );
+      await httpGet(
+        url
+      );
 
     const feed =
       await parser.parseString(
@@ -519,7 +904,9 @@ async function fetchRssUrl(
       );
 
     const items =
-      Array.isArray(feed.items)
+      Array.isArray(
+        feed.items
+      )
         ? feed.items
         : [];
 
@@ -582,48 +969,52 @@ async function fetchGoogleNewsSource(
       `   🔍 Query ${i + 1}/${queries.length}: ${query}`
     );
 
-    const url =
-      buildGoogleNewsUrl(
-        query
-      );
+    /*
+     * اول نسخه فارسی.
+     */
 
     let items =
       await fetchRssUrl(
-        url,
+        buildGoogleNewsUrl(
+          query,
+          'fa',
+          'IR',
+          'IR:fa'
+        ),
         source
       );
 
+    /*
+     * Google گاهی RSS فارسی را به US/English
+     * Redirect می‌کند. در این حالت fallback اجرا می‌شود.
+     */
+
     if (
-      items.length === 0
+      !items.length
     ) {
-      console.log(
-        `   🔁 Google fallback`
-      );
-
-      const fallback =
-        buildGoogleNewsUrl(
-          query,
-          'en-US',
-          'US',
-          'US:en'
-        );
-
       items =
         await fetchRssUrl(
-          fallback,
+          buildGoogleNewsUrl(
+            query,
+            'en-US',
+            'US',
+            'US:en'
+          ),
           source
         );
     }
 
     if (
-      items.length > 0
+      items.length
     ) {
-      console.log(
-        `   ✅ Query موفق: ${query} = ${items.length} خبر`
-      );
-
       all =
-        all.concat(items);
+        all.concat(
+          items
+        );
+
+      console.log(
+        `   ✅ ${items.length} خبر از Google`
+      );
     }
   }
 
@@ -636,41 +1027,8 @@ async function fetchGoogleNewsSource(
 }
 
 /* =========================================================
-   TELEGRAM HTML
+   TELEGRAM
 ========================================================= */
-
-function decodeHtml(text) {
-  return String(text || '')
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/&amp;/gi, '&')
-    .replace(/&quot;/gi, '"')
-    .replace(/&#39;/gi, "'")
-    .replace(/&lt;/gi, '<')
-    .replace(/&gt;/gi, '>');
-}
-
-function stripHtml(text) {
-  return decodeHtml(
-    String(text || '')
-      .replace(
-        /<br\s*\/?>/gi,
-        '\n'
-      )
-      .replace(
-        /<\/p>/gi,
-        '\n'
-      )
-      .replace(
-        /<[^>]*>/g,
-        ' '
-      )
-  )
-    .replace(
-      /\s+/g,
-      ' '
-    )
-    .trim();
-}
 
 function fetchTelegramSource(
   source
@@ -695,184 +1053,245 @@ function fetchTelegramSource(
           `   Telegram HTML: ${html.length} bytes`
         );
 
+        const $ =
+          cheerio.load(
+            html
+          );
+
         const items = [];
 
         /*
-         * Telegram public preview:
-         * هر پیام معمولاً در div.tgme_widget_message قرار دارد.
+         * Telegram public channel:
+         * .tgme_widget_message_wrap
          */
 
-        const messageRegex =
-          /<div[^>]+class="[^"]*tgme_widget_message_wrap[^"]*"[\s\S]*?<\/div>\s*<\/div>/gi;
+        $('.tgme_widget_message_wrap')
+          .each(
+            (index, element) => {
+              if (
+                items.length >=
+                MAX_ITEMS_PER_SOURCE
+              ) {
+                return;
+              }
 
-        const blocks =
-          html.match(
-            messageRegex
-          ) || [];
+              const block =
+                $(element);
 
-        for (
-          const block of blocks
-        ) {
-          let title = '';
-          let description = '';
+              const text =
+                cleanText(
+                  block
+                    .find(
+                      '.tgme_widget_message_text'
+                    )
+                    .first()
+                    .text()
+                );
 
-          const textMatch =
-            block.match(
-              /<div[^>]+class="[^"]*tgme_widget_message_text[^"]*"[^>]*>([\s\S]*?)<\/div>/i
-            );
+              if (
+                !text
+              ) {
+                return;
+              }
 
-          if (textMatch) {
-            description =
-              stripHtml(
-                textMatch[1]
-              );
-          }
+              /*
+               * عنوان:
+               * از اولین جمله/خط استفاده می‌کنیم.
+               */
 
-          /*
-           * اگر متن پیام پیدا شد،
-           * چند کلمه اول را عنوان قرار می‌دهیم.
-           */
-          if (description) {
-            title =
-              description.length > 120
-                ? description.substring(
-                    0,
-                    120
-                  ) + '...'
-                : description;
-          }
+              let title =
+                text;
 
-          /*
-           * لینک پیام
-           */
-          const linkMatch =
-            block.match(
-              /href="(https:\/\/t\.me\/[^"]+)"[^>]*class="[^"]*tgme_widget_message_date/i
-            );
-
-          const link =
-            linkMatch
-              ? linkMatch[1]
-              : source.url;
-
-          /*
-           * تاریخ
-           */
-          const dateMatch =
-            block.match(
-              /datetime="([^"]+)"/i
-            );
-
-          const date =
-            dateMatch
-              ? parseDate(
-                  dateMatch[1]
-                )
-              : null;
-
-          /*
-           * تصویر
-           */
-          const imageMatch =
-            block.match(
-              /background-image:url\(['"]?([^'")]+)['"]?\)/i
-            );
-
-          const image =
-            imageMatch
-              ? imageMatch[1]
-              : null;
-
-          if (
-            title &&
-            description
-          ) {
-            items.push({
-              title,
-              description,
-              link,
-              image,
-              publishedAt:
-                date
-                  ? date.toISOString()
-                  : null,
-              sourceName:
-                source.name
-            });
-          }
-
-          if (
-            items.length >=
-            MAX_ITEMS_PER_SOURCE
-          ) {
-            break;
-          }
-        }
-
-        /*
-         * اگر ساختار جدید Telegram
-         * با Regex بالا پیدا نشد،
-         * از meta description نیز استفاده می‌کنیم.
-         */
-        if (
-          items.length === 0
-        ) {
-          const metaMatches =
-            html.matchAll(
-              /<meta[^>]+property="og:description"[^>]+content="([^"]+)"/gi
-            );
-
-          for (
-            const match of metaMatches
-          ) {
-            const text =
-              stripHtml(
-                match[1]
-              );
-
-            if (
-              text &&
-              containsLocalKeyword(
+              const lines =
                 text
-              )
-            ) {
-              items.push({
-                title:
-                  text.length > 120
-                    ? text.substring(
-                        0,
-                        120
-                      ) + '...'
-                    : text,
+                  .split(
+                    /[\n\r]+/
+                  )
+                  .map(
+                    x =>
+                      x.trim()
+                  )
+                  .filter(Boolean);
 
-                description: text,
+              if (
+                lines.length
+              ) {
+                title =
+                  lines[0];
+              }
+
+              if (
+                title.length > 150
+              ) {
+                title =
+                  title.substring(
+                    0,
+                    147
+                  ) + '...';
+              }
+
+              /*
+               * لینک واقعی همان پست
+               */
+
+              let link =
+                '';
+
+              const dateAnchor =
+                block
+                  .find(
+                    '.tgme_widget_message_date'
+                  )
+                  .first();
+
+              if (
+                dateAnchor.length
+              ) {
+                link =
+                  dateAnchor.attr(
+                    'href'
+                  ) || '';
+              }
+
+              /*
+               * تاریخ واقعی Telegram
+               */
+
+              let publishedAt =
+                null;
+
+              const timeElement =
+                block
+                  .find(
+                    'time'
+                  )
+                  .first();
+
+              if (
+                timeElement.length
+              ) {
+                publishedAt =
+                  parseDate(
+                    timeElement.attr(
+                      'datetime'
+                    )
+                  );
+              }
+
+              if (
+                !publishedAt &&
+                dateAnchor.length
+              ) {
+                publishedAt =
+                  parseDate(
+                    dateAnchor.attr(
+                      'title'
+                    )
+                  );
+              }
+
+              /*
+               * تصویر
+               */
+
+              let image =
+                null;
+
+              const photo =
+                block
+                  .find(
+                    '.tgme_widget_message_photo_wrap'
+                  )
+                  .first();
+
+              if (
+                photo.length
+              ) {
+                const style =
+                  photo.attr(
+                    'style'
+                  ) || '';
+
+                const bg =
+                  style.match(
+                    /background-image\s*:\s*url\(['"]?([^'")]+)['"]?\)/i
+                  );
+
+                if (
+                  bg
+                ) {
+                  image =
+                    bg[1];
+                }
+              }
+
+              if (
+                !image
+              ) {
+                const img =
+                  block
+                    .find(
+                      'img'
+                    )
+                    .first();
+
+                if (
+                  img.length
+                ) {
+                  image =
+                    img.attr(
+                      'src'
+                    ) ||
+                    img.attr(
+                      'data-src'
+                    ) ||
+                    null;
+                }
+              }
+
+              items.push({
+                title,
+
+                description:
+                  text,
 
                 link:
+                  link ||
                   source.url,
 
-                image: null,
+                image,
 
-                publishedAt: null,
+                imageUrl:
+                  image,
+
+                publishedAt:
+                  publishedAt
+                    ? publishedAt.toISOString()
+                    : null,
 
                 sourceName:
                   source.name
               });
             }
-          }
-        }
+          );
 
         console.log(
           `   📱 Telegram items: ${items.length}`
         );
 
         resolve(
-          items.map(
-            item =>
-              normalizeItem(
-                item,
-                source
-              )
-          )
+          items
+            .map(
+              item =>
+                normalizeItem(
+                  item,
+                  source
+                )
+            )
+            .filter(
+              item =>
+                item.title
+            )
         );
       } catch (error) {
         console.log(
@@ -886,7 +1305,343 @@ function fetchTelegramSource(
 }
 
 /* =========================================================
-   SOURCE
+   HTML SOURCE
+========================================================= */
+
+async function fetchHtmlSource(
+  source
+) {
+  console.log(
+    `🌐 HTML شروع: ${source.name}`
+  );
+
+  try {
+    const html =
+      await httpGet(
+        source.url
+      );
+
+    console.log(
+      `   HTML bytes: ${html.length}`
+    );
+
+    const $ =
+      cheerio.load(
+        html
+      );
+
+    const items = [];
+
+    /*
+     * برای Tasnim و سایت‌های خبری مشابه،
+     * لینک خبر معمولاً /fa/news/ است.
+     */
+
+    const selectors = [
+      'a[href*="/fa/news/"]',
+      'article a[href*="/fa/news/"]',
+      '.news-list a[href*="/fa/news/"]',
+      '.news a[href*="/fa/news/"]',
+      '.item a[href*="/fa/news/"]'
+    ];
+
+    const seenLinks =
+      new Set();
+
+    for (
+      const selector of selectors
+    ) {
+      $(selector)
+        .each(
+          (index, element) => {
+            if (
+              items.length >=
+              MAX_ITEMS_PER_SOURCE
+            ) {
+              return;
+            }
+
+            const a =
+              $(element);
+
+            let title =
+              cleanText(
+                a.text()
+              );
+
+            let link =
+              a.attr(
+                'href'
+              );
+
+            if (
+              !title ||
+              !link
+            ) {
+              return;
+            }
+
+            if (
+              link.startsWith('/')
+            ) {
+              link =
+                new URL(
+                  link,
+                  source.url
+                ).toString();
+            }
+
+            if (
+              !/^https?:\/\//i.test(
+                link
+              )
+            ) {
+              return;
+            }
+
+            if (
+              seenLinks.has(
+                link
+              )
+            ) {
+              return;
+            }
+
+            /*
+             * لینک‌های غیرخبری را حذف کن.
+             */
+
+            if (
+              !link.includes(
+                '/fa/news/'
+              )
+            ) {
+              return;
+            }
+
+            seenLinks.add(
+              link
+            );
+
+            /*
+             * والد نزدیک برای گرفتن خلاصه
+             */
+
+            const parent =
+              a.closest(
+                'article, .news-item, .item, li, div'
+              );
+
+            let description =
+              '';
+
+            if (
+              parent &&
+              parent.length
+            ) {
+              description =
+                cleanText(
+                  parent.text()
+                );
+            }
+
+            /*
+             * از title تکراری جلوگیری کن.
+             */
+
+            if (
+              description ===
+              title
+            ) {
+              description =
+                '';
+            }
+
+            items.push({
+              title,
+
+              description,
+
+              link,
+
+              image:
+                null,
+
+              imageUrl:
+                null,
+
+              publishedAt:
+                null,
+
+              sourceName:
+                source.name
+            });
+          }
+        );
+
+      if (
+        items.length >=
+        MAX_ITEMS_PER_SOURCE
+      ) {
+        break;
+      }
+    }
+
+    /*
+     * اگر هیچ خبر پیدا نشد،
+     * لینک‌های عمومی صفحه را بررسی می‌کنیم.
+     */
+
+    if (
+      items.length === 0
+    ) {
+      $('a')
+        .each(
+          (index, element) => {
+            if (
+              items.length >=
+              MAX_ITEMS_PER_SOURCE
+            ) {
+              return;
+            }
+
+            const a =
+              $(element);
+
+            const href =
+              a.attr(
+                'href'
+              );
+
+            const title =
+              cleanText(
+                a.text()
+              );
+
+            if (
+              !href ||
+              !title
+            ) {
+              return;
+            }
+
+            if (
+              !href.includes(
+                '/fa/news/'
+              )
+            ) {
+              return;
+            }
+
+            let link =
+              href;
+
+            if (
+              link.startsWith('/')
+            ) {
+              link =
+                new URL(
+                  link,
+                  source.url
+                ).toString();
+            }
+
+            if (
+              seenLinks.has(
+                link
+              )
+            ) {
+              return;
+            }
+
+            seenLinks.add(
+              link
+            );
+
+            items.push({
+              title,
+
+              description:
+                '',
+
+              link,
+
+              image:
+                null,
+
+              imageUrl:
+                null,
+
+              publishedAt:
+                null,
+
+              sourceName:
+                source.name
+            });
+          }
+        );
+    }
+
+    /*
+     * تلاش برای استخراج تصویر OG صفحه اصلی
+     * به عنوان fallback.
+     */
+
+    let pageImage =
+      $('meta[property="og:image"]')
+        .attr(
+          'content'
+        ) ||
+      null;
+
+    if (
+      pageImage &&
+      pageImage.startsWith('/')
+    ) {
+      pageImage =
+        new URL(
+          pageImage,
+          source.url
+        ).toString();
+    }
+
+    const normalized =
+      items.map(
+        item => {
+          if (
+            !item.image &&
+            pageImage
+          ) {
+            item.image =
+              pageImage;
+
+            item.imageUrl =
+              pageImage;
+          }
+
+          return normalizeItem(
+            item,
+            source
+          );
+        }
+      );
+
+    console.log(
+      `   🌐 HTML items: ${normalized.length}`
+    );
+
+    return normalized;
+  } catch (error) {
+    console.log(
+      `⚠️ HTML error ${source.name}: ${error.message}`
+    );
+
+    return [];
+  }
+}
+
+/* =========================================================
+   SOURCE DISPATCHER
 ========================================================= */
 
 async function fetchSource(
@@ -918,7 +1673,18 @@ async function fetchSource(
   }
 
   if (
-    type === 'rss'
+    type === 'html' ||
+    type === 'web' ||
+    type === 'website'
+  ) {
+    return fetchHtmlSource(
+      source
+    );
+  }
+
+  if (
+    type === 'rss' ||
+    type === 'xml'
   ) {
     return fetchRssUrl(
       source.url,
@@ -934,35 +1700,216 @@ async function fetchSource(
 }
 
 /* =========================================================
+   NORMALIZATION FOR DEDUPLICATION
+========================================================= */
+
+function normalizeForCompare(
+  text
+) {
+  return String(
+    text || ''
+  )
+    .toLowerCase()
+    .replace(
+      /ی/g,
+      'ي'
+    )
+    .replace(
+      /ک/g,
+      'ك'
+    )
+    .replace(
+      /ۀ/g,
+      'ه'
+    )
+    .replace(
+      /ة/g,
+      'ه'
+    )
+    .replace(
+      /[\u200c\u200f]/g,
+      ''
+    )
+    .replace(
+      /[^\p{L}\p{N}]+/gu,
+      ' '
+    )
+    .trim();
+}
+
+/* =========================================================
+   SIMILARITY
+========================================================= */
+
+function titleSimilarity(
+  a,
+  b
+) {
+  const aa =
+    normalizeForCompare(
+      a
+    )
+      .split(' ')
+      .filter(
+        x =>
+          x.length >= 2
+      );
+
+  const bb =
+    new Set(
+      normalizeForCompare(
+        b
+      )
+        .split(' ')
+        .filter(
+          x =>
+            x.length >= 2
+        )
+    );
+
+  if (
+    !aa.length ||
+    !bb.size
+  ) {
+    return 0;
+  }
+
+  let common = 0;
+
+  for (
+    const word of aa
+  ) {
+    if (
+      bb.has(word)
+    ) {
+      common++;
+    }
+  }
+
+  return (
+    common /
+    Math.max(
+      aa.length,
+      bb.size
+    )
+  );
+}
+
+/* =========================================================
    UNIQUE
 ========================================================= */
 
 function uniqueItems(
   items
 ) {
-  const map =
-    new Map();
+  const result = [];
+
+  const exactLinks =
+    new Set();
+
+  const exactTitles =
+    new Set();
 
   for (
     const item of items
   ) {
-    const key =
-      item.link ||
-      `${item.title}|${item.sourceName}`;
+    if (
+      !item ||
+      !item.title
+    ) {
+      continue;
+    }
+
+    const title =
+      normalizeForCompare(
+        item.title
+      );
+
+    const link =
+      String(
+        item.link || ''
+      )
+        .trim();
+
+    /*
+     * لینک کاملاً یکسان
+     */
 
     if (
-      !map.has(key)
+      link &&
+      exactLinks.has(
+        link
+      )
     ) {
-      map.set(
-        key,
-        item
+      continue;
+    }
+
+    /*
+     * عنوان کاملاً یکسان
+     */
+
+    if (
+      title &&
+      exactTitles.has(
+        title
+      )
+    ) {
+      continue;
+    }
+
+    /*
+     * تشخیص خبرهای تقریباً یکسان
+     * بین چند منبع مختلف.
+     */
+
+    let duplicate =
+      false;
+
+    for (
+      const existing of result
+    ) {
+      const similarity =
+        titleSimilarity(
+          title,
+          existing.title
+        );
+
+      if (
+        similarity >= 0.78
+      ) {
+        duplicate = true;
+        break;
+      }
+    }
+
+    if (
+      duplicate
+    ) {
+      continue;
+    }
+
+    if (
+      link
+    ) {
+      exactLinks.add(
+        link
       );
     }
+
+    if (
+      title
+    ) {
+      exactTitles.add(
+        title
+      );
+    }
+
+    result.push(
+      item
+    );
   }
 
-  return Array.from(
-    map.values()
-  );
+  return result;
 }
 
 /* =========================================================
@@ -990,11 +1937,13 @@ async function fetchAllNews() {
     await loadSources();
 
   const active =
-    Array.isArray(sources)
+    Array.isArray(
+      sources
+    )
       ? sources.filter(
-          s =>
-            s &&
-            s.enabled !== false
+          source =>
+            source &&
+            source.enabled !== false
         )
       : [];
 
@@ -1015,6 +1964,10 @@ async function fetchAllNews() {
   let successful = 0;
   let empty = 0;
 
+  /*
+   * دریافت تک‌تک منابع
+   */
+
   for (
     const source of active
   ) {
@@ -1033,7 +1986,7 @@ async function fetchAllNews() {
       );
 
       if (
-        items.length
+        items.length > 0
       ) {
         successful++;
 
@@ -1069,7 +2022,11 @@ async function fetchAllNews() {
     `کل اخبار خام: ${raw.length}`
   );
 
-  const before =
+  /*
+   * حذف تکراری
+   */
+
+  const beforeUnique =
     raw.length;
 
   raw =
@@ -1082,10 +2039,15 @@ async function fetchAllNews() {
   );
 
   console.log(
-    `تعداد تکراری حذف‌شده: ${
-      before - raw.length
+    `تکراری حذف‌شده: ${
+      beforeUnique -
+      raw.length
     }`
   );
+
+  /*
+   * فیلتر زمانی
+   */
 
   const recent =
     raw.filter(
@@ -1096,6 +2058,10 @@ async function fetchAllNews() {
     `بعد از فیلتر ${MAX_NEWS_AGE_HOURS} ساعت: ${recent.length}`
   );
 
+  /*
+   * فیلتر محلی
+   */
+
   const local =
     recent.filter(
       isLocalNews
@@ -1105,15 +2071,25 @@ async function fetchAllNews() {
     `بعد از فیلتر محلی: ${local.length}`
   );
 
+  /*
+   * حذف خارجی
+   */
+
   const final =
     local.filter(
       item =>
-        !isForeignNews(item)
+        !isForeignNews(
+          item
+        )
     );
 
   console.log(
     `بعد از حذف اخبار خارجی: ${final.length}`
   );
+
+  /*
+   * مرتب‌سازی بر اساس تاریخ
+   */
 
   final.sort(
     (a, b) => {
@@ -1135,12 +2111,26 @@ async function fetchAllNews() {
     }
   );
 
+  /*
+   * محدود کردن خروجی نهایی
+   */
+
+  const limited =
+    final.slice(
+      0,
+      MAX_TOTAL_ITEMS
+    );
+
   console.log(
-    `تعداد اخبار دریافت‌شده: ${final.length}`
+    `تعداد اخبار نهایی: ${limited.length}`
   );
 
+  /*
+   * گزارش اخبار
+   */
+
   if (
-    final.length
+    limited.length
   ) {
     console.log(
       '================================'
@@ -1150,26 +2140,32 @@ async function fetchAllNews() {
       'اخبار نهایی:'
     );
 
-    final
-      .slice(0, 30)
-      .forEach(
-        (item, i) => {
-          console.log(
-            `${i + 1}. ${item.title}`
-          );
+    limited.forEach(
+      (item, index) => {
+        console.log(
+          `${index + 1}. ${item.title}`
+        );
 
-          console.log(
-            `   منبع: ${item.sourceName}`
-          );
+        console.log(
+          `   منبع: ${item.sourceName}`
+        );
 
-          console.log(
-            `   تاریخ: ${
-              item.publishedAt ||
-              'بدون تاریخ'
-            }`
-          );
-        }
-      );
+        console.log(
+          `   تاریخ: ${
+            item.publishedAt ||
+            'بدون تاریخ'
+          }`
+        );
+
+        console.log(
+          `   تصویر: ${
+            item.imageUrl
+              ? 'دارد'
+              : 'ندارد'
+          }`
+        );
+      }
+    );
   } else {
     console.log(
       'هیچ خبر جدید و واجد شرایطی دریافت نشد.'
@@ -1180,7 +2176,7 @@ async function fetchAllNews() {
     '================================'
   );
 
-  return final;
+  return limited;
 }
 
 /* =========================================================
@@ -1189,15 +2185,34 @@ async function fetchAllNews() {
 
 module.exports = {
   fetchAllNews,
+
   fetchSource,
+
   fetchGoogleNewsSource,
+
   fetchTelegramSource,
+
+  fetchHtmlSource,
+
+  fetchRssUrl,
+
   isRecentNews,
+
   isLocalNews,
+
   isForeignNews,
+
   uniqueItems,
+
   buildGoogleQueries,
+
   buildGoogleNewsUrl,
+
   normalizeItem,
-  extractImage
+
+  extractImage,
+
+  parseDate,
+
+  containsLocalKeyword
 };
