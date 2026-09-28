@@ -1,7 +1,6 @@
 'use strict';
 
-const CHANNEL_ID =
-  '@arrasbarannews';
+const CHANNEL_ID = '@arrasbarannews';
 
 function toPersianDigits(value) {
   return String(value)
@@ -17,204 +16,171 @@ function toPersianDigits(value) {
     .replace(/9/g, '۹');
 }
 
-function formatPersianDate(
-  date,
-  timezone = 'Asia/Tehran'
-) {
-  return new Intl.DateTimeFormat(
-    'fa-IR',
-    {
-      timeZone: timezone,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit'
-    }
-  ).format(date);
-}
-
-function formatPersianTime(
-  date,
-  timezone = 'Asia/Tehran'
-) {
-  return new Intl.DateTimeFormat(
-    'fa-IR',
-    {
-      timeZone: timezone,
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false
-    }
-  ).format(date);
-}
-
 function cleanText(text) {
+  return String(text || '')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/https?:\/\/\S+/gi, '')
+    .replace(/www\.\S+/gi, '')
+    .replace(/instagram\.com\/\S+/gi, '')
+    .replace(/t\.me\/\S+/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
 
-  if (!text) {
-    return '';
-  }
-
-  return String(text)
+function cleanTitle(title) {
+  return cleanText(title)
     .replace(
-      /<script[\s\S]*?<\/script>/gi,
-      ' '
-    )
-    .replace(
-      /<style[\s\S]*?<\/style>/gi,
-      ' '
-    )
-    .replace(
-      /<[^>]*>/g,
-      ' '
-    )
-    .replace(
-      /&nbsp;/gi,
-      ' '
-    )
-    .replace(
-      /&amp;/gi,
-      '&'
-    )
-    .replace(
-      /&quot;/gi,
-      '"'
-    )
-    .replace(
-      /&#39;/gi,
-      "'"
-    )
-    .replace(
-      /\s+/g,
-      ' '
+      /\s*[-|]\s*(تسنیم|ایرنا|ایسنا|فارس|مهر)\s*$/i,
+      ''
     )
     .trim();
 }
 
-function cleanNewsText(text) {
-
-  let value =
-    cleanText(text);
-
-  value =
-    value
-      .replace(
-        /\s*[-|]\s*(facebook\.com|youtube\.com|instagram\.com)\s*$/i,
-        ''
-      )
-      .replace(
-        /\s*[-|]\s*www\.[^\s]+$/i,
-        ''
-      )
-      .trim();
-
-  return value;
-}
-
-function cleanTitle(title) {
-
-  let value =
-    cleanNewsText(title);
-
-  value =
-    value
-      .replace(
-        /\s*[-–—|]\s*BBC\s*$/i,
-        ''
-      )
-      .replace(
-        /\s*[-–—|]\s*تسنیم\s*$/i,
-        ''
-      )
-      .replace(
-        /\s*[-–—|]\s*ایرنا\s*$/i,
-        ''
-      )
-      .replace(
-        /\s*[-–—|]\s*ایسنا\s*$/i,
-        ''
-      )
-      .replace(
-        /\s*[-–—|]\s*فارس\s*$/i,
-        ''
-      )
-      .trim();
-
-  return value;
-}
-
-function rewriteDescription(
-  text
+function formatPersianDate(
+  date,
+  timezone
 ) {
+  return toPersianDigits(
+    new Intl.DateTimeFormat(
+      'fa-IR-u-ca-persian',
+      {
+        timeZone: timezone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      }
+    ).format(date)
+  );
+}
 
-  let value =
-    cleanNewsText(text);
+function formatPersianTime(
+  date,
+  timezone
+) {
+  return toPersianDigits(
+    new Intl.DateTimeFormat(
+      'fa-IR',
+      {
+        timeZone: timezone,
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      }
+    ).format(date)
+  );
+}
 
-  if (!value) {
+function sourceLabel(sourceName) {
+  const name =
+    cleanText(sourceName);
+
+  if (!name) return '';
+
+  if (
+    /^google news/i.test(name)
+  ) {
     return '';
   }
 
-  value =
-    value
-      .replace(
-        /^به گزارش\s+/i,
-        ''
-      )
-      .replace(
-        /^گزارش\s+/i,
-        ''
-      )
-      .replace(
-        /^طبق گزارش\s+/i,
-        ''
-      )
-      .replace(
-        /^بر اساس گزارش\s+/i,
-        ''
-      )
-      .replace(
-        /\s+/g,
-        ' '
-      )
-      .trim();
+  return `به گزارش اخبار ارسباران به نقل از ${name}`;
+}
 
-  if (value.length > 650) {
-    value =
-      value.substring(
-        0,
-        647
-      ).trim() + '...';
+function makeSummary(
+  text,
+  maxLength
+) {
+  let value =
+    cleanText(text);
+
+  value = value
+    .replace(
+      /^به گزارش[^:：]*[:：]\s*/i,
+      ''
+    )
+    .replace(
+      /^طبق گزارش[^:：]*[:：]\s*/i,
+      ''
+    )
+    .replace(
+      /^به نقل از[^:：]*[:：]\s*/i,
+      ''
+    )
+    .trim();
+
+  if (!value) return '';
+
+  if (
+    value.length <= maxLength
+  ) {
+    return value;
   }
 
-  return value;
+  let cut =
+    value.substring(
+      0,
+      maxLength
+    );
+
+  const lastSpace =
+    cut.lastIndexOf(' ');
+
+  if (
+    lastSpace >
+    maxLength * 0.75
+  ) {
+    cut =
+      cut.substring(
+        0,
+        lastSpace
+      );
+  }
+
+  return `${cut}…`;
 }
 
 function formatNews(
   item,
   options = {}
 ) {
-
   const timezone =
     options.timezone ||
     'Asia/Tehran';
 
+  const forPhoto =
+    options.forPhoto !== false &&
+    !!item.imageUrl;
+
   const title =
-    cleanTitle(
-      item.title ||
-      'خبر جدید ارسباران'
-    );
+    cleanTitle(item.title) ||
+    'خبر جدید';
 
   const description =
-    rewriteDescription(
-      item.description ||
-      item.content ||
-      ''
+    makeSummary(
+      item.description,
+      forPhoto ? 560 : 1000
     );
 
-  const publishedAt =
-    item.publishedAt
-      ? new Date(
-          item.publishedAt
-        )
-      : new Date();
+  const source =
+    sourceLabel(
+      item.sourceName
+    );
+
+  let publishedAt = null;
+
+  if (item.publishedAt) {
+    const date =
+      new Date(
+        item.publishedAt
+      );
+
+    if (!isNaN(date.getTime())) {
+      publishedAt = date;
+    }
+  }
+
+  if (!publishedAt) {
+    return '';
+  }
 
   const date =
     formatPersianDate(
@@ -228,51 +194,59 @@ function formatNews(
       timezone
     );
 
-  let text = '';
+  const parts = [
+    `📰 ${title}`
+  ];
 
-  text +=
-    `📰 ${title}\n\n`;
+  if (source) {
+    parts.push(source);
+  }
 
   if (description) {
-    text +=
-      `${description}\n\n`;
+    parts.push(description);
   }
 
-  text +=
-    `🕐 ${date} - ${time}\n\n`;
-
-  text +=
-    CHANNEL_ID;
-
-  return text.trim();
-}
-
-function formatNewsList(
-  items,
-  options = {}
-) {
-
-  if (!Array.isArray(items)) {
-    return [];
-  }
-
-  return items.map(
-    item =>
-      formatNews(
-        item,
-        options
-      )
+  parts.push(
+    `🕐 ${date} - ${time}`
   );
+
+  parts.push(
+    CHANNEL_ID
+  );
+
+  let text =
+    parts.join('\n\n').trim();
+
+  if (
+    forPhoto &&
+    text.length > 950
+  ) {
+    text = [
+      `📰 ${title}`,
+      source,
+      makeSummary(
+        item.description,
+        500
+      ),
+      `🕐 ${date} - ${time}`,
+      CHANNEL_ID
+    ]
+      .filter(Boolean)
+      .join('\n\n');
+
+    if (text.length > 950) {
+      text =
+        text.substring(0, 947) +
+        '…';
+    }
+  }
+
+  return text;
 }
 
 module.exports = {
-  toPersianDigits,
+  formatNews,
   formatPersianDate,
   formatPersianTime,
-  cleanText,
-  cleanNewsText,
-  cleanTitle,
-  rewriteDescription,
-  formatNews,
-  formatNewsList
+  toPersianDigits
 };
