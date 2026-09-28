@@ -1,5 +1,7 @@
 'use strict';
 
+require('dotenv').config();
+
 const {
   fetchAllNews
 } = require('./news');
@@ -9,44 +11,27 @@ const {
 } = require('./formatter');
 
 const {
-  hasNews,
-  saveNews
-} = require('./storage');
-
-const {
+  getMe,
   sendMessage,
   sendPhoto,
   sendVideo
 } = require('./telegram');
 
 const {
-  getConfig
-} = require('./config');
+  hasNews,
+  saveNews
+} = require('./storage');
+
+const CONFIG = {
+  timezone:
+    process.env.TIMEZONE ||
+    'Asia/Tehran'
+};
 
 async function sendNewsItem(
   item,
   message
 ) {
-  if (item.videoUrl) {
-    try {
-      await sendVideo(
-        item.videoUrl,
-        message
-      );
-
-      console.log(
-        '🎥 ویدئو ارسال شد.'
-      );
-
-      return 'video';
-    } catch (error) {
-      console.error(
-        '⚠️ ویدئو ارسال نشد:',
-        error.message
-      );
-    }
-  }
-
   if (item.imageUrl) {
     try {
       await sendPhoto(
@@ -54,58 +39,64 @@ async function sendNewsItem(
         message
       );
 
-      console.log(
-        '🖼️ تصویر ارسال شد.'
-      );
-
       return 'photo';
     } catch (error) {
-      console.error(
-        '⚠️ تصویر ارسال نشد:',
-        error.message
+      console.log(
+        `⚠️ ارسال تصویر شکست خورد: ${error.message}`
+      );
+    }
+  }
+
+  if (item.videoUrl) {
+    try {
+      await sendVideo(
+        item.videoUrl,
+        message
+      );
+
+      return 'video';
+    } catch (error) {
+      console.log(
+        `⚠️ ارسال ویدئو شکست خورد: ${error.message}`
       );
     }
   }
 
   await sendMessage(message);
 
-  console.log(
-    '📝 متن خبر ارسال شد.'
-  );
-
   return 'text';
 }
 
 async function main() {
   console.log(
-    '================================'
+    '\n========================================'
   );
 
   console.log(
-    'ARASBARAN NEWS BOT'
+    '🇮🇷 ARASBARAN NEWS BOT'
   );
 
   console.log(
-    '================================'
+    '========================================\n'
   );
 
-  const config =
-    getConfig();
+  const me =
+    await getMe();
 
   console.log(
-    'در حال دریافت اخبار...'
+    `🤖 Bot: @${me.username || me.first_name}`
   );
 
   const news =
     await fetchAllNews();
 
   console.log(
-    `تعداد اخبار دریافت‌شده: ${news.length}`
+    `\n📰 اخبار نهایی: ${news.length}`
   );
 
   if (!news.length) {
     console.log(
-      'هیچ خبر جدید و واجد شرایطی دریافت نشد.'
+      'ℹ️ هیچ خبر جدید و معتبر محلی پیدا نشد.'
     );
 
     return;
@@ -113,69 +104,76 @@ async function main() {
 
   let sent = 0;
   let skipped = 0;
-  let errors = 0;
+  let failed = 0;
 
-  for (const item of news) {
+  for (
+    const item of news
+  ) {
+    const id =
+      item.id;
+
+    if (!id) {
+      continue;
+    }
+
+    if (hasNews(id)) {
+      skipped++;
+
+      console.log(
+        `↩️ تکراری: ${item.title}`
+      );
+
+      continue;
+    }
+
+    if (!item.publishedAt) {
+      console.log(
+        `⛔ خبر بدون تاریخ رد شد: ${item.title}`
+      );
+
+      continue;
+    }
+
+    const message =
+      formatNews(
+        item,
+        {
+          timezone:
+            CONFIG.timezone,
+          forPhoto:
+            !!item.imageUrl
+        }
+      );
+
+    if (!message) {
+      console.log(
+        `⛔ متن خبر قابل تولید نیست: ${item.title}`
+      );
+
+      continue;
+    }
+
+    console.log(
+      '\n----------------------------------------'
+    );
+
+    console.log(
+      `📰 ${item.title}`
+    );
+
+    console.log(
+      `📅 ${item.publishedAt}`
+    );
+
+    console.log(
+      `🖼️ ${item.imageUrl || 'بدون تصویر'}`
+    );
+
+    console.log(
+      `🔗 ${item.link || 'بدون لینک'}`
+    );
+
     try {
-      const id =
-        item.id ||
-        item.link;
-
-      if (!id) {
-        continue;
-      }
-
-      if (hasNews(id)) {
-        skipped++;
-
-        console.log(
-          `⏭️ تکراری: ${item.title}`
-        );
-
-        continue;
-      }
-
-      const message =
-        formatNews(
-          item,
-          {
-            timezone:
-              config.timezone
-          }
-        );
-
-      if (!message) {
-        continue;
-      }
-
-      console.log(
-        '--------------------------------'
-      );
-
-      console.log(
-        `📰 ${item.title}`
-      );
-
-      console.log(
-        `🔗 ${item.link || '-'}`
-      );
-
-      console.log(
-        `🕐 ${item.publishedAt || '-'}`
-      );
-
-      if (item.imageUrl) {
-        console.log(
-          `🖼️ ${item.imageUrl}`
-        );
-      }
-
-      if (item.videoUrl) {
-        console.log(
-          `🎥 ${item.videoUrl}`
-        );
-      }
-
       const type =
         await sendNewsItem(
           item,
@@ -187,73 +185,50 @@ async function main() {
       sent++;
 
       console.log(
-        `✅ ارسال موفق (${type})`
+        `✅ ارسال شد: ${type}`
       );
 
       await new Promise(
         resolve =>
           setTimeout(
             resolve,
-            1500
+            1200
           )
       );
     } catch (error) {
-      errors++;
+      failed++;
 
-      console.error(
-        `❌ خطا در خبر: ${
-          item.title || 'بدون عنوان'
-        }`
-      );
-
-      console.error(
-        error.stack ||
-        error.message
+      console.log(
+        `❌ خطا در ارسال: ${error.message}`
       );
     }
   }
 
   console.log(
-    '================================'
+    '\n========================================'
   );
 
   console.log(
-    'گزارش نهایی'
+    `✅ ارسال موفق: ${sent}`
   );
 
   console.log(
-    '================================'
+    `↩️ تکراری: ${skipped}`
   );
 
   console.log(
-    `دریافت: ${news.length}`
+    `❌ خطا: ${failed}`
   );
 
   console.log(
-    `ارسال: ${sent}`
-  );
-
-  console.log(
-    `تکراری: ${skipped}`
-  );
-
-  console.log(
-    `خطا: ${errors}`
-  );
-
-  console.log(
-    '================================'
+    '========================================'
   );
 }
 
 main().catch(error => {
   console.error(
-    'FATAL ERROR:'
-  );
-
-  console.error(
-    error.stack ||
-    error.message
+    '\n💥 خطای اصلی:',
+    error
   );
 
   process.exit(1);
