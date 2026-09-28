@@ -1,153 +1,154 @@
-[
-  {
-    "id": "google-varzqan",
-    "name": "Google News - ورزقان",
-    "type": "rss",
-    "url": "https://news.google.com/rss/search?q=%D9%88%D8%B1%D8%B2%D9%82%D8%A7%D9%86&hl=fa&gl=IR&ceid=IR%3Afa",
-    "keywords": [
-      "ورزقان",
-      "ورزقان",
-      "سونگون",
-      "خاروانا"
-    ],
-    "enabled": true
-  },
-  {
-    "id": "google-kharvana",
-    "name": "Google News - خاروانا",
-    "type": "rss",
-    "url": "https://news.google.com/rss/search?q=%D8%AE%D8%A7%D8%B1%D9%88%D8%A7%D9%86%D8%A7&hl=fa&gl=IR&ceid=IR%3Afa",
-    "keywords": [
-      "خاروانا",
-      "ورزقان",
-      "سونگون"
-    ],
-    "enabled": true
-  },
-  {
-    "id": "google-ahar",
-    "name": "Google News - اهر",
-    "type": "rss",
-    "url": "https://news.google.com/rss/search?q=%D8%A7%D9%87%D8%B1+%D8%A2%D8%B0%D8%B1%D8%A8%D8%A7%DB%8C%D8%AC%D8%A7%D9%86&hl=fa&gl=IR&ceid=IR%3Afa",
-    "keywords": [
-      "اهر",
-      "ارسباران",
-      "آذربایجان شرقی"
-    ],
-    "enabled": true
-  },
-  {
-    "id": "google-kaleybar",
-    "name": "Google News - کلیبر",
-    "type": "rss",
-    "url": "https://news.google.com/rss/search?q=%DA%A9%D9%84%DB%8C%D8%A8%D8%B1+%D8%A2%D8%B0%D8%B1%D8%A8%D8%A7%DB%8C%D8%AC%D8%A7%D9%86&hl=fa&gl=IR&ceid=IR%3Afa",
-    "keywords": [
-      "کلیبر",
-      "كليبر",
-      "ارسباران"
-    ],
-    "enabled": true
-  },
-  {
-    "id": "google-horand",
-    "name": "Google News - هوراند",
-    "type": "rss",
-    "url": "https://news.google.com/rss/search?q=%D9%87%D9%88%D8%B1%D8%A7%D9%86%D8%AF&hl=fa&gl=IR&ceid=IR%3Afa",
-    "keywords": [
-      "هوراند",
-      "ارسباران"
-    ],
-    "enabled": true
-  },
-  {
-    "id": "google-khoda-afarin",
-    "name": "Google News - خداآفرین",
-    "type": "rss",
-    "url": "https://news.google.com/rss/search?q=%D8%AE%D8%AF%D8%A7%D8%A2%D9%81%D8%B1%DB%8C%D9%86&hl=fa&gl=IR&ceid=IR%3Afa",
-    "keywords": [
-      "خداآفرین",
-      "خدا آفرین",
-      "خداآفرین",
-      "ارسباران"
-    ],
-    "enabled": true
-  },
-  {
-    "id": "google-arasbaran",
-    "name": "Google News - ارسباران",
-    "type": "rss",
-    "url": "https://news.google.com/rss/search?q=%D8%A7%D8%B1%D8%B3%D8%A8%D8%A7%D8%B1%D8%A7%D9%86&hl=fa&gl=IR&ceid=IR%3Afa",
-    "keywords": [
-      "ارسباران",
-      "قره داغ",
-      "قره‌داغ",
-      "ورزقان",
-      "اهر",
-      "کلیبر",
-      "هوراند",
-      "خداآفرین",
-      "خاروانا"
-    ],
-    "enabled": true
-  },
-  {
-    "id": "telegram-varzqan",
-    "name": "ورزقان خبری",
-    "type": "telegram",
-    "url": "https://t.me/s/varzaghan_khabari",
-    "keywords": [
-      "ورزقان",
-      "خاروانا",
-      "سونگون",
-      "ارسباران"
-    ],
-    "enabled": true
-  },
-  {
-    "id": "telegram-horand",
-    "name": "هوراند خبر",
-    "type": "telegram",
-    "url": "https://t.me/s/horand_khabar",
-    "keywords": [
-      "هوراند",
-      "کلیبر",
-      "خداآفرین",
-      "ارسباران"
-    ],
-    "enabled": true
-  },
-  {
-    "id": "tasnim-east-azerbaijan",
-    "name": "تسنیم آذربایجان شرقی",
-    "type": "html",
-    "url": "https://www.tasnimnews.ir/fa/service/47/%D8%A2%D8%B0%D8%B1%D8%A8%D8%A7%DB%8C%D8%AC%D8%A7%D9%86-%D8%B4%D8%B1%D9%82%DB%8C",
-    "keywords": [
-      "ورزقان",
-      "خاروانا",
-      "اهر",
-      "کلیبر",
-      "هوراند",
-      "خداآفرین",
-      "ارسباران",
-      "سونگون"
-    ],
-    "enabled": true
-  },
-  {
-    "id": "khabarfarsi",
-    "name": "خبر فارسی",
-    "type": "rss",
-    "url": "https://khabarfarsi.com/rss",
-    "keywords": [
-      "ورزقان",
-      "خاروانا",
-      "اهر",
-      "کلیبر",
-      "هوراند",
-      "خداآفرین",
-      "ارسباران",
-      "سونگون"
-    ],
-    "enabled": true
-  }
-]
+{
+  "sources": [
+    {
+      "id": "google-varzqan",
+      "name": "Google News - ورزقان",
+      "type": "rss",
+      "url": "https://news.google.com/rss/search?q=%D9%88%D8%B1%D8%B2%D9%82%D8%A7%D9%86&hl=fa&gl=IR&ceid=IR%3Afa",
+      "keywords": [
+        "ورزقان",
+        "سونگون",
+        "خاروانا"
+      ],
+      "enabled": true
+    },
+    {
+      "id": "google-kharvana",
+      "name": "Google News - خاروانا",
+      "type": "rss",
+      "url": "https://news.google.com/rss/search?q=%D8%AE%D8%A7%D8%B1%D9%88%D8%A7%D9%86%D8%A7&hl=fa&gl=IR&ceid=IR%3Afa",
+      "keywords": [
+        "خاروانا",
+        "ورزقان",
+        "سونگون"
+      ],
+      "enabled": true
+    },
+    {
+      "id": "google-ahar",
+      "name": "Google News - اهر",
+      "type": "rss",
+      "url": "https://news.google.com/rss/search?q=%D8%A7%D9%87%D8%B1+%D8%A2%D8%B0%D8%B1%D8%A8%D8%A7%DB%8C%D8%AC%D8%A7%D9%86&hl=fa&gl=IR&ceid=IR%3Afa",
+      "keywords": [
+        "اهر",
+        "ارسباران",
+        "آذربایجان شرقی"
+      ],
+      "enabled": true
+    },
+    {
+      "id": "google-kaleybar",
+      "name": "Google News - کلیبر",
+      "type": "rss",
+      "url": "https://news.google.com/rss/search?q=%DA%A9%D9%84%DB%8C%D8%A8%D8%B1+%D8%A2%D8%B0%D8%B1%D8%A8%D8%A7%DB%8C%D8%AC%D8%A7%D9%86&hl=fa&gl=IR&ceid=IR%3Afa",
+      "keywords": [
+        "کلیبر",
+        "كليبر",
+        "ارسباران"
+      ],
+      "enabled": true
+    },
+    {
+      "id": "google-horand",
+      "name": "Google News - هوراند",
+      "type": "rss",
+      "url": "https://news.google.com/rss/search?q=%D9%87%D9%88%D8%B1%D8%A7%D9%86%D8%AF&hl=fa&gl=IR&ceid=IR%3Afa",
+      "keywords": [
+        "هوراند",
+        "ارسباران"
+      ],
+      "enabled": true
+    },
+    {
+      "id": "google-khoda-afarin",
+      "name": "Google News - خداآفرین",
+      "type": "rss",
+      "url": "https://news.google.com/rss/search?q=%D8%AE%D8%AF%D8%A7%D8%A2%D9%81%D8%B1%DB%8C%D9%86&hl=fa&gl=IR&ceid=IR%3Afa",
+      "keywords": [
+        "خداآفرین",
+        "خدا آفرین",
+        "خداآفرین",
+        "ارسباران"
+      ],
+      "enabled": true
+    },
+    {
+      "id": "google-arasbaran",
+      "name": "Google News - ارسباران",
+      "type": "rss",
+      "url": "https://news.google.com/rss/search?q=%D8%A7%D8%B1%D8%B3%D8%A8%D8%A7%D8%B1%D8%A7%D9%86&hl=fa&gl=IR&ceid=IR%3Afa",
+      "keywords": [
+        "ارسباران",
+        "قره داغ",
+        "قره‌داغ",
+        "ورزقان",
+        "اهر",
+        "کلیبر",
+        "هوراند",
+        "خداآفرین",
+        "خاروانا"
+      ],
+      "enabled": true
+    },
+    {
+      "id": "telegram-varzqan",
+      "name": "ورزقان خبری",
+      "type": "telegram",
+      "url": "https://t.me/s/varzaghan_khabari",
+      "keywords": [
+        "ورزقان",
+        "خاروانا",
+        "سونگون",
+        "ارسباران"
+      ],
+      "enabled": true
+    },
+    {
+      "id": "telegram-horand",
+      "name": "هوراند خبر",
+      "type": "telegram",
+      "url": "https://t.me/s/horand_khabar",
+      "keywords": [
+        "هوراند",
+        "کلیبر",
+        "خداآفرین",
+        "ارسباران"
+      ],
+      "enabled": true
+    },
+    {
+      "id": "tasnim-east-azerbaijan",
+      "name": "تسنیم آذربایجان شرقی",
+      "type": "html",
+      "url": "https://www.tasnimnews.ir/fa/service/47/%D8%A2%D8%B0%D8%B1%D8%A8%D8%A7%DB%8C%D8%AC%D8%A7%D9%86-%D8%B4%D8%B1%D9%82%DB%8C",
+      "keywords": [
+        "ورزقان",
+        "خاروانا",
+        "اهر",
+        "کلیبر",
+        "هوراند",
+        "خداآفرین",
+        "ارسباران",
+        "سونگون"
+      ],
+      "enabled": true
+    },
+    {
+      "id": "khabarfarsi",
+      "name": "خبر فارسی",
+      "type": "rss",
+      "url": "https://khabarfarsi.com/rss",
+      "keywords": [
+        "ورزقان",
+        "خاروانا",
+        "اهر",
+        "کلیبر",
+        "هوراند",
+        "خداآفرین",
+        "ارسباران",
+        "سونگون"
+      ],
+      "enabled": true
+    }
+  ]
+}
