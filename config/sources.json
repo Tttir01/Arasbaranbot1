@@ -1,121 +1,122 @@
-{
-  "sources": [
-    {
-      "id": "aharnews",
-      "name": "اهر خبر",
-      "type": "html",
-      "url": "https://www.aharnews.ir/",
-      "areas": [
-        "اهر",
-        "ورزقان",
-        "خاروانا",
-        "کلیبر",
-        "هوراند",
-        "خداآفرین",
-        "ارسباران"
-      ],
-      "enabled": true,
-      "maxItems": 20
-    },
-    {
-      "id": "tasnim-east-azarbaijan",
-      "name": "تسنیم آذربایجان شرقی",
-      "type": "html",
-      "url": "https://www.tasnimnews.ir/fa/service/47/آذربایجان-شرقی",
-      "areas": [
-        "اهر",
-        "ورزقان",
-        "خاروانا",
-        "کلیبر",
-        "هوراند",
-        "خداآفرین",
-        "ارسباران"
-      ],
-      "enabled": true,
-      "maxItems": 20
-    },
-    {
-      "id": "varzgan",
-      "name": "ورزقان",
-      "type": "google-news",
-      "url": "https://news.google.com/rss/search?q=%D9%88%D8%B1%D8%B2%D9%82%D8%A7%D9%86&hl=fa&gl=IR&ceid=IR%3Afa",
-      "areas": [
-        "ورزقان",
-        "ارسباران"
-      ],
-      "enabled": true
-    },
-    {
-      "id": "khavarana",
-      "name": "خاروانا",
-      "type": "google-news",
-      "url": "https://news.google.com/rss/search?q=%D8%AE%D8%A7%D8%B1%D9%88%D8%A7%D9%86%D8%A7&hl=fa&gl=IR&ceid=IR%3Afa",
-      "areas": [
-        "خاروانا",
-        "ورزقان",
-        "ارسباران"
-      ],
-      "enabled": true
-    },
-    {
-      "id": "ahar",
-      "name": "اهر",
-      "type": "google-news",
-      "url": "https://news.google.com/rss/search?q=%D8%A7%D9%87%D8%B1&hl=fa&gl=IR&ceid=IR%3Afa",
-      "areas": [
-        "اهر",
-        "ارسباران"
-      ],
-      "enabled": true
-    },
-    {
-      "id": "kaleybar",
-      "name": "کلیبر",
-      "type": "google-news",
-      "url": "https://news.google.com/rss/search?q=%DA%A9%D9%84%DB%8C%D8%A8%D8%B1&hl=fa&gl=IR&ceid=IR%3Afa",
-      "areas": [
-        "کلیبر",
-        "ارسباران"
-      ],
-      "enabled": true
-    },
-    {
-      "id": "hurand",
-      "name": "هوراند",
-      "type": "google-news",
-      "url": "https://news.google.com/rss/search?q=%D9%87%D9%88%D8%B1%D8%A7%D9%86%D8%AF&hl=fa&gl=IR&ceid=IR%3Afa",
-      "areas": [
-        "هوراند",
-        "ارسباران"
-      ],
-      "enabled": true
-    },
-    {
-      "id": "khodaafarin",
-      "name": "خداآفرین",
-      "type": "google-news",
-      "url": "https://news.google.com/rss/search?q=%D8%AE%D8%AF%D8%A7%D8%A2%D9%81%D8%B1%DB%8C%D9%86&hl=fa&gl=IR&ceid=IR%3Afa",
-      "areas": [
-        "خداآفرین",
-        "ارسباران"
-      ],
-      "enabled": true
-    },
-    {
-      "id": "arasbaran",
-      "name": "ارسباران",
-      "type": "google-news",
-      "url": "https://news.google.com/rss/search?q=%D8%A7%D8%B1%D8%B3%D8%A8%D8%A7%D8%B1%D8%A7%D9%86&hl=fa&gl=IR&ceid=IR%3Afa",
-      "areas": [
-        "ارسباران",
-        "ورزقان",
-        "اهر",
-        "کلیبر",
-        "هوراند",
-        "خداآفرین",
-        "خاروانا"
-      ],
-      "enabled": true
-    }
-  ]
-}
+[
+  {
+    "name": "ورزقان",
+    "type": "google-news",
+    "enabled": true,
+    "query": "ورزقان"
+  },
+  {
+    "name": "ورزقان خبری",
+    "type": "telegram",
+    "enabled": true,
+    "url": "https://t.me/s/varzaghan_khabari"
+  },
+  {
+    "name": "تسنیم آذربایجان شرقی",
+    "type": "google-news",
+    "enabled": true,
+    "query": "site:tasnimnews.ir/fa/news ورزقان"
+  },
+  {
+    "name": "تسنیم ورزقان",
+    "type": "google-news",
+    "enabled": true,
+    "query": "site:tasnimnews.ir/fa/news \"ورزقان\""
+  },
+  {
+    "name": "خاروانا",
+    "type": "google-news",
+    "enabled": true,
+    "query": "خاروانا"
+  },
+  {
+    "name": "خاروانا ورزقان",
+    "type": "google-news",
+    "enabled": true,
+    "query": "خاروانا ورزقان"
+  },
+  {
+    "name": "اهر",
+    "type": "google-news",
+    "enabled": true,
+    "query": "اهر"
+  },
+  {
+    "name": "اهر آذربایجان شرقی",
+    "type": "google-news",
+    "enabled": true,
+    "query": "اهر آذربایجان شرقی"
+  },
+  {
+    "name": "کلیبر",
+    "type": "google-news",
+    "enabled": true,
+    "query": "کلیبر"
+  },
+  {
+    "name": "کلیبر آذربایجان شرقی",
+    "type": "google-news",
+    "enabled": true,
+    "query": "کلیبر آذربایجان شرقی"
+  },
+  {
+    "name": "هوراند",
+    "type": "google-news",
+    "enabled": true,
+    "query": "هوراند"
+  },
+  {
+    "name": "هوراند خبر",
+    "type": "telegram",
+    "enabled": true,
+    "url": "https://t.me/s/horand_khabar"
+  },
+  {
+    "name": "خداآفرین",
+    "type": "google-news",
+    "enabled": true,
+    "query": "خداآفرین"
+  },
+  {
+    "name": "خداآفرین آذربایجان شرقی",
+    "type": "google-news",
+    "enabled": true,
+    "query": "خداآفرین آذربایجان شرقی"
+  },
+  {
+    "name": "ارسباران",
+    "type": "google-news",
+    "enabled": true,
+    "query": "ارسباران"
+  },
+  {
+    "name": "ارسباران آذربایجان شرقی",
+    "type": "google-news",
+    "enabled": true,
+    "query": "ارسباران آذربایجان شرقی"
+  },
+  {
+    "name": "مس سونگون",
+    "type": "google-news",
+    "enabled": true,
+    "query": "مس سونگون ورزقان"
+  },
+  {
+    "name": "فرمانداری ورزقان",
+    "type": "google-news",
+    "enabled": true,
+    "query": "\"فرمانداری ورزقان\""
+  },
+  {
+    "name": "آموزش و پرورش ورزقان",
+    "type": "google-news",
+    "enabled": true,
+    "query": "\"آموزش و پرورش\" ورزقان"
+  },
+  {
+    "name": "جهاد کشاورزی ورزقان",
+    "type": "google-news",
+    "enabled": true,
+    "query": "\"جهاد کشاورزی\" ورزقان"
+  }
+]
