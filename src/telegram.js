@@ -1,137 +1,458 @@
 'use strict';
 
+const http = require('http');
 const https = require('https');
 
-const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-const CHAT_ID = process.env.TELEGRAM_CHANNEL_ID;
+const TOKEN =
+  process.env.TELEGRAM_BOT_TOKEN;
 
-function telegramRequest(method, data = {}) {
-  return new Promise((resolve, reject) => {
-    if (!BOT_TOKEN) {
-      reject(new Error('TELEGRAM_BOT_TOKEN تنظیم نشده است.'));
-      return;
-    }
+const API =
+  `https://api.telegram.org/bot${TOKEN}`;
 
-    if (!CHAT_ID) {
-      reject(new Error('TELEGRAM_CHANNEL_ID تنظیم نشده است.'));
-      return;
-    }
+function telegramRequest(
+  method,
+  payload
+) {
+  return new Promise(
+    (resolve, reject) => {
+      const url =
+        new URL(`${API}/${method}`);
 
-    const payload = JSON.stringify(data);
+      const body =
+        JSON.stringify(payload);
 
-    const options = {
-      hostname: 'api.telegram.org',
-      path: `/bot${BOT_TOKEN}/${method}`,
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(payload)
-      }
-    };
+      const req =
+        https.request(
+          {
+            hostname:
+              url.hostname,
+            path:
+              url.pathname,
+            method:
+              'POST',
+            headers: {
+              'Content-Type':
+                'application/json',
+              'Content-Length':
+                Buffer.byteLength(body)
+            },
+            timeout: 30000
+          },
+          res => {
+            let data = '';
 
-    const request = https.request(options, response => {
-      let body = '';
-
-      response.on('data', chunk => {
-        body += chunk;
-      });
-
-      response.on('end', () => {
-        try {
-          const result = JSON.parse(body);
-
-          if (!result.ok) {
-            reject(
-              new Error(
-                result.description || 'Telegram API error'
-              )
+            res.on(
+              'data',
+              chunk => {
+                data += chunk;
+              }
             );
-            return;
-          }
 
-          resolve(result.result);
-        } catch (error) {
-          reject(
+            res.on(
+              'end',
+              () => {
+                try {
+                  const json =
+                    JSON.parse(data);
+
+                  if (!json.ok) {
+                    reject(
+                      new Error(
+                        json.description ||
+                        `Telegram API ${res.statusCode}`
+                      )
+                    );
+                    return;
+                  }
+
+                  resolve(
+                    json.result
+                  );
+                } catch (error) {
+                  reject(error);
+                }
+              }
+            );
+          }
+        );
+
+      req.on(
+        'timeout',
+        () => {
+          req.destroy(
             new Error(
-              `پاسخ نامعتبر تلگرام: ${body}`
+              'Telegram request timeout'
             )
           );
         }
-      });
-    });
+      );
 
-    request.on('error', reject);
+      req.on(
+        'error',
+        reject
+      );
 
-    request.write(payload);
-    request.end();
-  });
+      req.write(body);
+      req.end();
+    }
+  );
 }
 
-/*
- * بررسی اتصال ربات
- */
+function downloadBuffer(
+  url,
+  redirects = 0
+) {
+  return new Promise(
+    (resolve, reject) => {
+      if (redirects > 6) {
+        reject(
+          new Error(
+            'Redirect limit exceeded'
+          )
+        );
+        return;
+      }
+
+      let parsed;
+
+      try {
+        parsed =
+          new URL(url);
+      } catch {
+        reject(
+          new Error(
+            'URL تصویر نامعتبر است'
+          )
+        );
+        return;
+      }
+
+      const client =
+        parsed.protocol === 'https:'
+          ? https
+          : http;
+
+      const req =
+        client.request(
+          parsed,
+          {
+            method: 'GET',
+            timeout: 30000,
+            headers: {
+              'User-Agent':
+                'Mozilla/5.0',
+              Accept:
+                'image/avif,image/webp,image/apng,image/*,*/*'
+            }
+          },
+          res => {
+            const status =
+              res.statusCode || 0;
+
+            if (
+              [301,302,303,307,308]
+                .includes(status) &&
+              res.headers.location
+            ) {
+              res.resume();
+
+              const next =
+                new URL(
+                  res.headers.location,
+                  url
+                ).href;
+
+              downloadBuffer(
+                next,
+                redirects + 1
+              )
+                .then(resolve)
+                .catch(reject);
+
+              return;
+            }
+
+            if (
+              status < 200 ||
+              status >= 400
+            ) {
+              res.resume();
+
+              reject(
+                new Error(
+                  `Image HTTP ${status}`
+                )
+              );
+
+              return;
+            }
+
+            const chunks = [];
+
+            res.on(
+              'data',
+              chunk =>
+                chunks.push(chunk)
+            );
+
+            res.on(
+              'end',
+              () => {
+                resolve({
+                  buffer:
+                    Buffer.concat(chunks),
+                  contentType:
+                    res.headers[
+                      'content-type'
+                    ] || 'image/jpeg'
+                });
+              }
+            );
+          }
+        );
+
+      req.on(
+        'timeout',
+        () => {
+          req.destroy(
+            new Error(
+              'Image download timeout'
+            )
+          );
+        }
+      );
+
+      req.on(
+        'error',
+        reject
+      );
+
+      req.end();
+    }
+  );
+}
+
+function multipartTelegramRequest(
+  method,
+  fields,
+  fileField,
+  fileBuffer,
+  fileName,
+  contentType
+) {
+  return new Promise(
+    (resolve, reject) => {
+      const boundary =
+        `----ArasbaranBot${Date.now()}`;
+
+      const chunks = [];
+
+      for (
+        const [key, value]
+        of Object.entries(fields)
+      ) {
+        chunks.push(
+          Buffer.from(
+            `--${boundary}\r\n` +
+            `Content-Disposition: form-data; name="${key}"\r\n\r\n` +
+            `${String(value)}\r\n`
+          )
+        );
+      }
+
+      chunks.push(
+        Buffer.from(
+          `--${boundary}\r\n` +
+          `Content-Disposition: form-data; name="${fileField}"; filename="${fileName}"\r\n` +
+          `Content-Type: ${contentType || 'image/jpeg'}\r\n\r\n`
+        )
+      );
+
+      chunks.push(fileBuffer);
+
+      chunks.push(
+        Buffer.from(
+          `\r\n--${boundary}--\r\n`
+        )
+      );
+
+      const body =
+        Buffer.concat(chunks);
+
+      const url =
+        new URL(
+          `${API}/${method}`
+        );
+
+      const req =
+        https.request(
+          {
+            hostname:
+              url.hostname,
+            path:
+              url.pathname,
+            method:
+              'POST',
+            headers: {
+              'Content-Type':
+                `multipart/form-data; boundary=${boundary}`,
+              'Content-Length':
+                body.length
+            },
+            timeout: 60000
+          },
+          res => {
+            let data = '';
+
+            res.on(
+              'data',
+              chunk => {
+                data += chunk;
+              }
+            );
+
+            res.on(
+              'end',
+              () => {
+                try {
+                  const json =
+                    JSON.parse(data);
+
+                  if (!json.ok) {
+                    reject(
+                      new Error(
+                        json.description ||
+                        `Telegram ${res.statusCode}`
+                      )
+                    );
+                    return;
+                  }
+
+                  resolve(
+                    json.result
+                  );
+                } catch (error) {
+                  reject(error);
+                }
+              }
+            );
+          }
+        );
+
+      req.on(
+        'timeout',
+        () => {
+          req.destroy(
+            new Error(
+              'Multipart timeout'
+            )
+          );
+        }
+      );
+
+      req.on(
+        'error',
+        reject
+      );
+
+      req.write(body);
+      req.end();
+    }
+  );
+}
+
 async function getMe() {
-  return telegramRequest('getMe');
+  return telegramRequest(
+    'getMe',
+    {}
+  );
 }
 
-/*
- * ارسال متن
- */
 async function sendMessage(text) {
-  if (!text || !String(text).trim()) {
-    throw new Error('متن پیام خالی است.');
+  const chatId =
+    process.env.TELEGRAM_CHANNEL_ID;
+
+  if (!chatId) {
+    throw new Error(
+      'TELEGRAM_CHANNEL_ID تنظیم نشده است.'
+    );
   }
 
-  return telegramRequest('sendMessage', {
-    chat_id: CHAT_ID,
-    text: String(text),
-    disable_web_page_preview: true
-  });
+  return telegramRequest(
+    'sendMessage',
+    {
+      chat_id: chatId,
+      text,
+      disable_web_page_preview: true
+    }
+  );
 }
 
-/*
- * ارسال عکس
- */
-async function sendPhoto(photo, caption = '') {
-  if (!photo) {
-    throw new Error('آدرس عکس خالی است.');
+async function sendPhoto(
+  photo,
+  caption = ''
+) {
+  const chatId =
+    process.env.TELEGRAM_CHANNEL_ID;
+
+  if (!chatId) {
+    throw new Error(
+      'TELEGRAM_CHANNEL_ID تنظیم نشده است.'
+    );
   }
 
-  const data = {
-    chat_id: CHAT_ID,
-    photo: String(photo)
-  };
+  try {
+    return await telegramRequest(
+      'sendPhoto',
+      {
+        chat_id: chatId,
+        photo,
+        caption
+      }
+    );
+  } catch (firstError) {
+    console.log(
+      `⚠️ ارسال مستقیم تصویر ناموفق بود: ${firstError.message}`
+    );
 
-  if (caption && String(caption).trim()) {
-    data.caption = String(caption).substring(0, 1024);
+    const downloaded =
+      await downloadBuffer(photo);
+
+    return multipartTelegramRequest(
+      'sendPhoto',
+      {
+        chat_id: chatId,
+        caption
+      },
+      'photo',
+      downloaded.buffer,
+      'news.jpg',
+      downloaded.contentType
+    );
   }
-
-  return telegramRequest('sendPhoto', data);
 }
 
-/*
- * ارسال ویدئو
- */
-async function sendVideo(video, caption = '') {
-  if (!video) {
-    throw new Error('آدرس ویدئو خالی است.');
-  }
+async function sendVideo(
+  video,
+  caption = ''
+) {
+  const chatId =
+    process.env.TELEGRAM_CHANNEL_ID;
 
-  const data = {
-    chat_id: CHAT_ID,
-    video: String(video)
-  };
-
-  if (caption && String(caption).trim()) {
-    data.caption = String(caption).substring(0, 1024);
-  }
-
-  return telegramRequest('sendVideo', data);
+  return telegramRequest(
+    'sendVideo',
+    {
+      chat_id: chatId,
+      video,
+      caption
+    }
+  );
 }
 
 module.exports = {
   getMe,
   sendMessage,
   sendPhoto,
-  sendVideo
+  sendVideo,
+  telegramRequest
 };
