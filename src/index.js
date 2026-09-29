@@ -7,6 +7,10 @@ const {
 } = require('./news');
 
 const {
+  loadSources
+} = require('./sources');
+
+const {
   formatNews
 } = require('./formatter');
 
@@ -87,8 +91,15 @@ async function main() {
     `🤖 Bot: @${me.username || me.first_name}`
   );
 
+  const sources =
+    loadSources();
+
+  console.log(
+    `📡 تعداد منابع بارگذاری‌شده: ${sources.length}`
+  );
+
   const news =
-    await fetchAllNews();
+    await fetchAllNews(sources);
 
   console.log(
     `\n📰 اخبار نهایی: ${news.length}`
@@ -110,7 +121,10 @@ async function main() {
     const item of news
   ) {
     const id =
-      item.id;
+      item.id ||
+      item.hash ||
+      item.url ||
+      item.link;
 
     if (!id) {
       continue;
