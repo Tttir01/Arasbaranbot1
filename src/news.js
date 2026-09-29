@@ -2887,6 +2887,9 @@ function normalizeItem(
       'منبع نامشخص'
     );
 
+  item.sourceName =
+    item.source;
+
   item.sourceUrl =
     firstNonEmpty(
       raw.sourceUrl,
@@ -2957,6 +2960,14 @@ function normalizeItem(
   item.hash =
     createNewsHash(
       item
+    );
+
+  item.id =
+    firstNonEmpty(
+      raw.id,
+      raw.messageId,
+      item.url,
+      item.hash
     );
 
   return item;
