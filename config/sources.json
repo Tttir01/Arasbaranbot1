@@ -10,6 +10,10 @@
         "سونگون",
         "خاروانا"
       ],
+      "areas": [
+        "ورزقان",
+        "خاروانا"
+      ],
       "enabled": true
     },
     {
@@ -22,70 +26,8 @@
         "ورزقان",
         "سونگون"
       ],
-      "enabled": true
-    },
-    {
-      "id": "google-ahar",
-      "name": "Google News - اهر",
-      "type": "rss",
-      "url": "https://news.google.com/rss/search?q=%D8%A7%D9%87%D8%B1+%D8%A2%D8%B0%D8%B1%D8%A8%D8%A7%DB%8C%D8%AC%D8%A7%D9%86&hl=fa&gl=IR&ceid=IR%3Afa",
-      "keywords": [
-        "اهر",
-        "ارسباران",
-        "آذربایجان شرقی"
-      ],
-      "enabled": true
-    },
-    {
-      "id": "google-kaleybar",
-      "name": "Google News - کلیبر",
-      "type": "rss",
-      "url": "https://news.google.com/rss/search?q=%DA%A9%D9%84%DB%8C%D8%A8%D8%B1+%D8%A2%D8%B0%D8%B1%D8%A8%D8%A7%DB%8C%D8%AC%D8%A7%D9%86&hl=fa&gl=IR&ceid=IR%3Afa",
-      "keywords": [
-        "کلیبر",
-        "كليبر",
-        "ارسباران"
-      ],
-      "enabled": true
-    },
-    {
-      "id": "google-horand",
-      "name": "Google News - هوراند",
-      "type": "rss",
-      "url": "https://news.google.com/rss/search?q=%D9%87%D9%88%D8%B1%D8%A7%D9%86%D8%AF&hl=fa&gl=IR&ceid=IR%3Afa",
-      "keywords": [
-        "هوراند",
-        "ارسباران"
-      ],
-      "enabled": true
-    },
-    {
-      "id": "google-khoda-afarin",
-      "name": "Google News - خداآفرین",
-      "type": "rss",
-      "url": "https://news.google.com/rss/search?q=%D8%AE%D8%AF%D8%A7%D8%A2%D9%81%D8%B1%DB%8C%D9%86&hl=fa&gl=IR&ceid=IR%3Afa",
-      "keywords": [
-        "خداآفرین",
-        "خدا آفرین",
-        "خداآفرین",
-        "ارسباران"
-      ],
-      "enabled": true
-    },
-    {
-      "id": "google-arasbaran",
-      "name": "Google News - ارسباران",
-      "type": "rss",
-      "url": "https://news.google.com/rss/search?q=%D8%A7%D8%B1%D8%B3%D8%A8%D8%A7%D8%B1%D8%A7%D9%86&hl=fa&gl=IR&ceid=IR%3Afa",
-      "keywords": [
-        "ارسباران",
-        "قره داغ",
-        "قره‌داغ",
+      "areas": [
         "ورزقان",
-        "اهر",
-        "کلیبر",
-        "هوراند",
-        "خداآفرین",
         "خاروانا"
       ],
       "enabled": true
@@ -98,21 +40,75 @@
       "keywords": [
         "ورزقان",
         "خاروانا",
-        "سونگون",
-        "ارسباران"
+        "سونگون"
+      ],
+      "areas": [
+        "ورزقان",
+        "خاروانا"
       ],
       "enabled": true
     },
     {
-      "id": "telegram-horand",
-      "name": "هوراند خبر",
+      "id": "telegram-kharvana",
+      "name": "انعکاس اخبار بخش خاروانا",
       "type": "telegram",
-      "url": "https://t.me/s/horand_khabar",
+      "url": "https://t.me/s/kharvanakhabarlari",
       "keywords": [
-        "هوراند",
-        "کلیبر",
-        "خداآفرین",
-        "ارسباران"
+        "خاروانا",
+        "ورزقان",
+        "دیزمار"
+      ],
+      "areas": [
+        "ورزقان",
+        "خاروانا"
+      ],
+      "enabled": true
+    },
+    {
+      "id": "telegram-asr-varzqan",
+      "name": "عصر ورزقان",
+      "type": "telegram",
+      "url": "https://t.me/s/asrevarzeghan",
+      "keywords": [
+        "ورزقان",
+        "خاروانا",
+        "سونگون"
+      ],
+      "areas": [
+        "ورزقان",
+        "خاروانا"
+      ],
+      "enabled": true
+    },
+    {
+      "id": "telegram-avaye-varzqan",
+      "name": "آوای ورزقان",
+      "type": "telegram",
+      "url": "https://t.me/s/avayehvarzeghan",
+      "keywords": [
+        "ورزقان",
+        "خاروانا",
+        "سونگون"
+      ],
+      "areas": [
+        "ورزقان",
+        "خاروانا"
+      ],
+      "enabled": true
+    },
+    {
+      "id": "site-varzgan",
+      "name": "صدای ورزقان و خاروانا",
+      "type": "html",
+      "url": "https://www.varzgan.com",
+      "keywords": [
+        "ورزقان",
+        "خاروانا",
+        "سونگون"
+      ],
+      "areas": [
+        "ورزقان",
+        "خاروانا"
       ],
       "enabled": true
     },
@@ -124,29 +120,59 @@
       "keywords": [
         "ورزقان",
         "خاروانا",
-        "اهر",
-        "کلیبر",
-        "هوراند",
-        "خداآفرین",
-        "ارسباران",
         "سونگون"
+      ],
+      "areas": [
+        "ورزقان",
+        "خاروانا"
       ],
       "enabled": true
     },
     {
-      "id": "khabarfarsi",
-      "name": "خبر فارسی",
+      "id": "irna-varzqan-kharvana",
+      "name": "ایرنا - ورزقان و خاروانا",
       "type": "rss",
-      "url": "https://khabarfarsi.com/rss",
+      "url": "https://news.google.com/rss/search?q=site%3Airna.ir+%28%D9%88%D8%B1%D8%B2%D9%82%D8%A7%D9%86+OR+%D8%AE%D8%A7%D8%B1%D9%88%D8%A7%D9%86%D8%A7%29&hl=fa&gl=IR&ceid=IR%3Afa",
       "keywords": [
         "ورزقان",
         "خاروانا",
-        "اهر",
-        "کلیبر",
-        "هوراند",
-        "خداآفرین",
-        "ارسباران",
         "سونگون"
+      ],
+      "areas": [
+        "ورزقان",
+        "خاروانا"
+      ],
+      "enabled": true
+    },
+    {
+      "id": "isna-varzqan-kharvana",
+      "name": "ایسنا - ورزقان و خاروانا",
+      "type": "rss",
+      "url": "https://news.google.com/rss/search?q=site%3Aisna.ir+%28%D9%88%D8%B1%D8%B2%D9%82%D8%A7%D9%86+OR+%D8%AE%D8%A7%D8%B1%D9%88%D8%A7%D9%86%D8%A7%29&hl=fa&gl=IR&ceid=IR%3Afa",
+      "keywords": [
+        "ورزقان",
+        "خاروانا",
+        "سونگون"
+      ],
+      "areas": [
+        "ورزقان",
+        "خاروانا"
+      ],
+      "enabled": true
+    },
+    {
+      "id": "mehr-varzqan-kharvana",
+      "name": "مهر - ورزقان و خاروانا",
+      "type": "rss",
+      "url": "https://news.google.com/rss/search?q=site%3Amehrnews.com+%28%D9%88%D8%B1%D8%B2%D9%82%D8%A7%D9%86+OR+%D8%AE%D8%A7%D8%B1%D9%88%D8%A7%D9%86%D8%A7%29&hl=fa&gl=IR&ceid=IR%3Afa",
+      "keywords": [
+        "ورزقان",
+        "خاروانا",
+        "سونگون"
+      ],
+      "areas": [
+        "ورزقان",
+        "خاروانا"
       ],
       "enabled": true
     }
