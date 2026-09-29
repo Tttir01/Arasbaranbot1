@@ -100,9 +100,22 @@ jobs:
           echo "================================"
 
           node -e "require('rss-parser'); console.log('rss-parser: OK')"
-
           node -e "require('dotenv'); console.log('dotenv: OK')"
+          node -e "require('cheerio'); console.log('cheerio: OK')"
 
+          echo "================================"
+
+      - name: Verify checked-out source
+        run: |
+          echo "================================"
+          echo "SOURCE VERSION CHECK"
+          echo "================================"
+          echo "Commit:"
+          git rev-parse HEAD
+          echo "news.js SHA:"
+          sha256sum src/news.js
+          echo "Expected diagnostic markers:"
+          grep -n "📡 RSS شروع\|🌐 HTML شروع" src/news.js || true
           echo "================================"
 
       - name: Test source configuration
