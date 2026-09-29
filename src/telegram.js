@@ -455,11 +455,4 @@ module.exports = {
   sendPhoto,
   sendVideo,
   telegramRequest
-  
-};module.exports = {
-  getMe,
-  sendMessage,
-  sendPhoto,
-  sendVideo,
-  telegramRequest
 };
