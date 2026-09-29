@@ -455,5 +455,11 @@ module.exports = {
   sendPhoto,
   sendVideo,
   telegramRequest
-  Bad Request: failed to get HTTP URL content
+  
+};module.exports = {
+  getMe,
+  sendMessage,
+  sendPhoto,
+  sendVideo,
+  telegramRequest
 };
