@@ -173,6 +173,8 @@ jobs:
           TIMEZONE: Asia/Tehran
           MAX_ITEMS_PER_SOURCE: 10
           MAX_TOTAL_ITEMS: 30
+          NEWS_MAX_AGE_HOURS: 24
+          MAX_HISTORY_ITEMS: 5000
           REQUEST_TIMEOUT: 25000
           DATA_FILE: data/news-history.json
         run: |
