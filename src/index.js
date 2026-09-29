@@ -130,7 +130,7 @@ async function main() {
       continue;
     }
 
-    if (hasNews(id)) {
+    if (hasNews(item)) {
       skipped++;
 
       console.log(
@@ -194,7 +194,7 @@ async function main() {
           message
         );
 
-      saveNews(id);
+      saveNews(item);
 
       sent++;
 
