@@ -160,10 +160,7 @@ function formatNews(
       forPhoto ? 560 : 1000
     );
 
-  const source =
-    sourceLabel(
-      item.sourceName
-    );
+  const source = '';
 
   let publishedAt = null;
 
