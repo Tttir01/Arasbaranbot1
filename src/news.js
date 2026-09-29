@@ -578,6 +578,17 @@ const LOCAL_NEWS_TOPICS = [
   'خدمت رسانی',
   'خدمت‌رسانی',
   'دیدار',
+  'جلسه',
+  'فرماندار',
+  'فرمانداری',
+  'بخشدار',
+  'بخشداری',
+  'مدیر',
+  'مدیریت',
+  'رئیس',
+  'رییس',
+  'معاون',
+  'مسئول',
   'معرفی رئیس',
   'معرفی مدیر',
   'تغییر مدیر',
@@ -587,6 +598,16 @@ const LOCAL_NEWS_TOPICS = [
 
   'مدیر جدید',
   'رئیس جدید',
+  'رییس جدید',
+
+  'اقتصاد',
+  'توسعه',
+  'معدن',
+  'مس',
+  'سونگون',
+  'ترانزیت',
+  'صنعت',
+  'معدن و تجارت',
 
   'تقدیر',
   'تجلیل',
@@ -1151,8 +1172,15 @@ function parseDate(value) {
       : d;
   }
 
+  const normalizedText = text
+    .replace(/[۰-۹]/g, function (ch) {
+      return String('۰۱۲۳۴۵۶۷۸۹'.indexOf(ch));
+    })
+    .replace(/[يى]/g, 'ی')
+    .replace(/ك/g, 'ک');
+
   const date =
-    new Date(text);
+    new Date(normalizedText);
 
   if (!isNaN(date.getTime())) {
     return date;
@@ -1558,9 +1586,17 @@ function extractImageUrl(item) {
 
 function requestText(
   url,
-  options
+  options,
+  redirectCount
 ) {
   options = options || {};
+  redirectCount = Number(redirectCount || 0);
+
+  if (redirectCount > 6) {
+    return Promise.reject(
+      new Error('Redirect limit exceeded')
+    );
+  }
 
   return new Promise(
     function (resolve, reject) {
@@ -1622,7 +1658,8 @@ function requestText(
 
               requestText(
                 next,
-                options
+                options,
+                redirectCount + 1
               )
                 .then(resolve)
                 .catch(reject);
@@ -2172,12 +2209,28 @@ async function fetchRSSSource(
   source
 ) {
   try {
+    console.log(
+      '📡 RSS شروع: ' +
+      (source.name || source.id || 'منبع') +
+      ' | ' +
+      source.url
+    );
+
     const feed =
       await parser.parseURL(
         source.url
       );
 
-    return (feed.items || [])
+    const feedItems = feed.items || [];
+
+    console.log(
+      '📥 RSS نتیجه: ' +
+      feedItems.length +
+      ' | ' +
+      (source.name || source.id || 'منبع')
+    );
+
+    return feedItems
       .slice(
         0,
         MAX_ITEMS_PER_SOURCE
@@ -2322,6 +2375,13 @@ async function fetchHTMLSource(
   const items = [];
 
   try {
+    console.log(
+      '🌐 HTML شروع: ' +
+      (source.name || source.id || 'منبع') +
+      ' | ' +
+      source.url
+    );
+
     const html =
       await requestText(
         source.url,
@@ -2333,6 +2393,13 @@ async function fetchHTMLSource(
 
     const $ =
       cheerio.load(html);
+
+    console.log(
+      '📄 HTML دریافت شد: ' +
+      html.length +
+      ' بایت | ' +
+      (source.name || source.id || 'منبع')
+    );
 
     /*
      * لینک‌های خبر
@@ -2412,6 +2479,13 @@ async function fetchHTMLSource(
             absolute
         });
       }
+    );
+
+    console.log(
+      '🔗 لینک‌های کاندید: ' +
+      links.length +
+      ' | ' +
+      (source.name || source.id || 'منبع')
     );
 
     /*
