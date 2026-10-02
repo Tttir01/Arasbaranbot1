@@ -71,7 +71,7 @@ jobs:
       - name: Check Telegram Secrets
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHANNEL_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
+          TELEGRAM_CHANNEL_ID: -1003955581255
         run: |
           echo "================================"
           echo "TELEGRAM CONFIGURATION CHECK"
@@ -169,7 +169,7 @@ jobs:
       - name: Test application modules
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHANNEL_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
+          TELEGRAM_CHANNEL_ID: -1003955581255
           TIMEZONE: Asia/Tehran
           MAX_ITEMS_PER_SOURCE: 10
           MAX_TOTAL_ITEMS: 30
@@ -209,7 +209,7 @@ jobs:
       - name: Test Telegram connection
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHANNEL_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
+          TELEGRAM_CHANNEL_ID: -1003955581255
           TIMEZONE: Asia/Tehran
           MAX_ITEMS_PER_SOURCE: 10
           MAX_TOTAL_ITEMS: 30
@@ -240,7 +240,7 @@ jobs:
       - name: Verify Telegram destination and send permission
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHANNEL_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
+          TELEGRAM_CHANNEL_ID: -1003955581255
         run: |
           echo "================================"
           echo "TELEGRAM DESTINATION SEND TEST"
@@ -257,6 +257,12 @@ jobs:
               console.log('TARGET CHAT TYPE:', chat.type);
               console.log('TARGET CHAT TITLE:', chat.title || '(no title)');
               console.log('TARGET CHAT USERNAME:', chat.username ? '@' + chat.username : '(private/no username)');
+              if (String(chat.id) !== '-1003955581255') {
+                throw new Error('مقصد Telegram اشتباه است؛ شناسه کانال موردنظر باید -1003955581255 باشد.');
+              }
+              if (chat.type !== 'channel') {
+                throw new Error('مقصد Telegram کانال نیست؛ نوع مقصد: ' + chat.type);
+              }
               console.log('BOT ID:', bot.id);
               console.log('Checking channel administrators...');
               try {
@@ -277,6 +283,7 @@ jobs:
               const sent = await sendMessage(marker);
               console.log('TELEGRAM SEND: OK');
               console.log('TEST MESSAGE ID:', sent.message_id);
+              console.log('DESTINATION VERIFIED: CHANNEL');
               console.log('NOTE: test message will be removed only if deleteMessage is available.');
             } catch (error) {
               console.error('TELEGRAM DESTINATION SEND: FAILED');
@@ -289,7 +296,7 @@ jobs:
       - name: Run Arasbaran News Bot
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHANNEL_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
+          TELEGRAM_CHANNEL_ID: -1003955581255
           TIMEZONE: Asia/Tehran
           MAX_ITEMS_PER_SOURCE: 10
           MAX_TOTAL_ITEMS: 30
