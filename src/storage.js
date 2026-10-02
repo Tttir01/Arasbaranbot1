@@ -99,26 +99,23 @@ function isSameNews(item, oldItem) {
 
   if (!current || !old) return false;
 
+  // شناسه فنی/URL یکسان یعنی همان خبر.
   if (current.hash && old.hash && current.hash === old.hash) return true;
   if (current.url && old.url && current.url === old.url) return true;
   if (current.id && old.id && current.id === old.id) return true;
 
-  // خبرهای منتشرشده توسط دو منبع مختلف با URL متفاوت:
-  // اگر تیتر تقریباً یکسان باشد، همان خبر است.
-  if (
-    current.title &&
-    old.title &&
-    similarity(current.title, old.title) >= 0.82
-  ) {
+  // برای خبرهای قدیمی، شباهت تیتر یا متن به‌تنهایی کافی نیست؛
+  // چون خبرهای روزانه ممکن است تیترهای مشابه داشته باشند.
+  // فقط اگر تاریخ انتشار هم در یک بازه محدود باشد، مشابه محسوب می‌شود.
+  const currentDate = current.publishedAt ? new Date(current.publishedAt).getTime() : 0;
+  const oldDate = old.publishedAt ? new Date(old.publishedAt).getTime() : 0;
+  const closeInTime = currentDate > 0 && oldDate > 0 && Math.abs(currentDate - oldDate) <= 48 * 60 * 60 * 1000;
+
+  if (closeInTime && current.title && old.title && similarity(current.title, old.title) >= 0.90) {
     return true;
   }
 
-  // اگر تیتر کمی تغییر کرده ولی متن خبر تقریباً همان باشد.
-  if (
-    current.content &&
-    old.content &&
-    similarity(current.content, old.content) >= 0.86
-  ) {
+  if (closeInTime && current.content && old.content && similarity(current.content, old.content) >= 0.92) {
     return true;
   }
 
