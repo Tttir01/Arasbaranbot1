@@ -237,6 +237,38 @@ jobs:
 
           echo "================================"
 
+      - name: Verify Telegram destination and bot membership
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHANNEL_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
+        run: |
+          echo "================================"
+          echo "TELEGRAM DESTINATION PREFLIGHT"
+          echo "================================"
+          node - <<'NODE'
+          const { getTargetChatInfo } = require('./src/telegram');
+          getTargetChatInfo()
+            .then(({ bot, chat, member }) => {
+              console.log('BOT ID:', bot.id);
+              console.log('BOT USERNAME:', '@' + (bot.username || 'unknown'));
+              console.log('TARGET CHAT ID:', chat.id);
+              console.log('TARGET CHAT TYPE:', chat.type);
+              console.log('TARGET CHAT TITLE:', chat.title || '(no title)');
+              console.log('TARGET CHAT USERNAME:', chat.username ? '@' + chat.username : '(private/no username)');
+              console.log('BOT MEMBERSHIP STATUS:', member.status);
+              console.log('BOT CAN POST:', member.can_post_messages === undefined ? '(not exposed for this chat type)' : member.can_post_messages);
+              const allowed = ['administrator', 'creator'];
+              if (!allowed.includes(member.status)) throw new Error('بات در مقصد تنظیم‌شده عضو/ادمین نیست. وضعیت فعلی: ' + member.status);
+              if (member.status === 'administrator' && member.can_post_messages === false) throw new Error('بات ادمین است ولی اجازه ارسال پیام در کانال را ندارد.');
+              console.log('TELEGRAM DESTINATION: OK');
+            })
+            .catch(error => {
+              console.error('TELEGRAM DESTINATION: FAILED');
+              console.error(error.message);
+              process.exit(1);
+            });
+          NODE
+          echo "================================"
       - name: Run Arasbaran News Bot
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
