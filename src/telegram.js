@@ -387,6 +387,12 @@ async function getChatMember(chatId, userId) {
   );
 }
 
+async function getChatAdministrators(chatId) {
+  return telegramRequest('getChatAdministrators', {
+    chat_id: chatId || process.env.TELEGRAM_CHANNEL_ID
+  });
+}
+
 async function getTargetChatInfo() {
   const chatId = process.env.TELEGRAM_CHANNEL_ID;
 
@@ -492,6 +498,7 @@ module.exports = {
   getMe,
   getChat,
   getChatMember,
+  getChatAdministrators,
   getTargetChatInfo,
   sendMessage,
   sendPhoto,
