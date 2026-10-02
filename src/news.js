@@ -297,7 +297,8 @@ function removeSourceNoise(text) {
       return;
     }
 
-    if (      /telegram\.me/i.test(line)
+    if (
+      /telegram\.me/i.test(line)
     ) {
       return;
     }
@@ -564,7 +565,8 @@ const LOCAL_NEWS_TOPICS = [
   'معارفه',
 
   'مدیر جدید',
-  'رئیس جدید',  'رییس جدید',
+  'رئیس جدید',
+  'رییس جدید',
 
   'اقتصاد',
   'توسعه',
@@ -730,14 +732,17 @@ function hasBlockedContent(item) {
 function isForeignNews(item) {
   const text = getNewsSearchText(item);
 
-  // وجود نام ورزقان/خاروانا باعث می‌شود نشانه‌های عمومی خارجی
-  // به‌تنهایی خبر را حذف نکنند؛ اما خبر باید از فیلتر محلی نیز عبور کند.
   const hasTargetArea = containsAny(
     text,
-    [].concat(LOCAL_AREAS.varzqan, LOCAL_AREAS.kharvana)
+    [].concat(
+      LOCAL_AREAS.varzqan,
+      LOCAL_AREAS.kharvana
+    )
   );
 
-  if (hasTargetArea) return false;
+  if (hasTargetArea) {
+    return false;
+  }
 
   return FOREIGN_PATTERNS.some(function (pattern) {
     return pattern.test(text);
@@ -753,8 +758,14 @@ function isForeignNews(item) {
 function detectLocation(item) {
   const text = getNewsSearchText(item);
 
-  if (containsAny(text, LOCAL_AREAS.kharvana)) return 'خاروانا';
-  if (containsAny(text, LOCAL_AREAS.varzqan)) return 'ورزقان';
+  if (containsAny(text, LOCAL_AREAS.kharvana)) {
+    return 'خاروانا';
+  }
+
+  if (containsAny(text, LOCAL_AREAS.varzqan)) {
+    return 'ورزقان';
+  }
+
   return '';
 }
 
@@ -807,7 +818,8 @@ function isVarzqanRelevant(item) {
  */
 
 function isHorandRelevant(item) {
-  const text =    getNewsSearchText(item);
+  const text =
+    getNewsSearchText(item);
 
   if (
     containsAny(
@@ -937,20 +949,20 @@ function isKhodaAfarinRelevant(item) {
  */
 
 function isLocalNews(item) {
-  if (!item || hasBlockedContent(item)) return false;
+  if (!item) return false;
+  if (hasBlockedContent(item)) return false;
 
   const text = getNewsSearchText(item);
 
-  // فقط دو حوزه هدف: ورزقان و خاروانا.
-  // نام «ارسباران»، «آذربایجان شرقی» یا شهرستان‌های دیگر به‌تنهایی کافی نیست.
-  const hasTargetArea = containsAny(
+  const targetArea = containsAny(
     text,
-    [].concat(LOCAL_AREAS.varzqan, LOCAL_AREAS.kharvana)
+    [].concat(
+      LOCAL_AREAS.varzqan,
+      LOCAL_AREAS.kharvana
+    )
   );
 
-  if (!hasTargetArea) return false;
-
-  // خبرهای خارجی فقط وقتی پذیرفته می‌شوند که محتوای محلی هدف نیز داشته باشند.
+  if (!targetArea) return false;
   if (isForeignNews(item)) return false;
 
   return true;
@@ -1027,7 +1039,8 @@ function extractTelegramDate($) {
 
   /*
    * مهم:
-   * فقط datetime واقعی پیام Telegram   */
+   * فقط datetime واقعی پیام Telegram
+   */
   const values = [];
 
   $('time[datetime]').each(
@@ -1326,7 +1339,8 @@ function isIncompleteNews(item) {
   }
 
   if (
-    hasBlockedContent(item)  ) {
+    hasBlockedContent(item)
+  ) {
     return true;
   }
 
@@ -1625,6 +1639,7 @@ function requestBuffer(
               )
                 .then(resolve)
                 .catch(reject);
+
               return;
             }
 
@@ -1924,7 +1939,8 @@ function extractTelegramDateFromElement(
         const value =
           message
             .find('time[datetime]')
-            .first()            .attr('datetime');
+            .first()
+            .attr('datetime');
 
         if (value) {
           values.push(value);
@@ -2224,3 +2240,1863 @@ async function fetchHTMLSource(
       '📄 HTML دریافت شد: ' +
       html.length +
       ' بایت | ' +
+      (source.name || source.id || 'منبع')
+    );
+
+    /*
+     * لینک‌های خبر
+     */
+    const links = [];
+
+    $('a[href]').each(
+      function () {
+        if (
+          links.length >=
+          MAX_ITEMS_PER_SOURCE
+        ) {
+          return false;
+        }
+
+        const a =
+          $(this);
+
+        const title =
+          cleanText(
+            a.text()
+          );
+
+        const href =
+          a.attr('href') ||
+          '';
+
+        if (
+          !title ||
+          title.length < 15
+        ) {
+          return;
+        }
+
+        if (
+          !href ||
+          href === '#'
+        ) {
+          return;
+        }
+
+        let absolute;
+
+        try {
+          absolute =
+            new URL(
+              href,
+              source.url
+            ).toString();
+        } catch (error) {
+          return;
+        }
+
+        if (
+          !/^https?:\/\//i.test(
+            absolute
+          )
+        ) {
+          return;
+        }
+
+        /*
+         * لینک‌های غیرخبری
+         */
+        if (
+          /javascript:|login|register|contact|search/i.test(
+            absolute
+          )
+        ) {
+          return;
+        }
+
+        links.push({
+          title:
+            title,
+          url:
+            absolute
+        });
+      }
+    );
+
+    console.log(
+      '🔗 لینک‌های کاندید: ' +
+      links.length +
+      ' | ' +
+      (source.name || source.id || 'منبع')
+    );
+
+    /*
+     * حذف لینک‌های تکراری
+     */
+    const unique =
+      [];
+
+    const seen =
+      new Set();
+
+    links.forEach(
+      function (item) {
+        const key =
+          item.url;
+
+        if (
+          seen.has(key)
+        ) {
+          return;
+        }
+
+        seen.add(key);
+        unique.push(item);
+      }
+    );
+
+    /*
+     * صفحه هر خبر
+     */
+    for (
+      let i = 0;
+      i < unique.length &&
+      items.length <
+        MAX_ITEMS_PER_SOURCE;
+      i++
+    ) {
+      const candidate =
+        unique[i];
+
+      try {
+        const article =
+          await fetchArticlePage(
+            candidate.url,
+            source,
+            candidate.title
+          );
+
+        if (article) {
+          items.push(
+            article
+          );
+        }
+      } catch (error) {
+        console.log(
+          '⚠️ مقاله ناموفق: ' +
+          candidate.url
+        );
+      }
+    }
+  } catch (error) {
+    console.log(
+      '❌ HTML ' +
+      source.name +
+      ': ' +
+      error.message
+    );
+  }
+
+  return items;
+}
+
+
+/* ============================================================
+ * دریافت صفحه مقاله
+ * ============================================================
+ */
+
+async function fetchArticlePage(
+  url,
+  source,
+  fallbackTitle
+) {
+  const html =
+    await requestText(
+      url,
+      {
+        timeout:
+          REQUEST_TIMEOUT
+      }
+    );
+
+  const $ =
+    cheerio.load(html);
+
+  /*
+   * عنوان
+   */
+  const title =
+    cleanText(
+      firstNonEmpty(
+        $('meta[property="og:title"]').attr('content'),
+        $('meta[name="twitter:title"]').attr('content'),
+        $('h1').first().text(),
+        $('title').first().text(),
+        fallbackTitle
+      )
+    );
+
+  if (!title) {
+    return null;
+  }
+
+  /*
+   * توضیح
+   */
+  const description =
+    cleanText(
+      firstNonEmpty(
+        $('meta[property="og:description"]').attr('content'),
+        $('meta[name="description"]').attr('content')
+      )
+    );
+
+  /*
+   * تاریخ
+   */
+  let publishedAt =
+    null;
+
+  const dateCandidates = [
+    $('meta[property="article:published_time"]').attr('content'),
+    $('meta[name="date"]').attr('content'),
+    $('time[datetime]').first().attr('datetime'),
+    $('[datetime]').first().attr('datetime')
+  ];
+
+  for (
+    let i = 0;
+    i < dateCandidates.length;
+    i++
+  ) {
+    const date =
+      parseDate(
+        dateCandidates[i]
+      );
+
+    if (date) {
+      publishedAt =
+        date;
+      break;
+    }
+  }
+
+  /*
+   * متن مقاله
+   */
+  const articleSelectors = [
+    'article',
+    '.article-body',
+    '.article-content',
+    '.news-content',
+    '.news-text',
+    '.content',
+    '.item-text',
+    '.story'
+  ];
+
+  let content = '';
+
+  for (
+    let i = 0;
+    i < articleSelectors.length;
+    i++
+  ) {
+    const node =
+      $(articleSelectors[i])
+        .first();
+
+    if (
+      node.length
+    ) {
+      const text =
+        cleanText(
+          node.text()
+        );
+
+      if (
+        text.length >
+        content.length
+      ) {
+        content =
+          text;
+      }
+    }
+  }
+
+  if (
+    content.length < 50
+  ) {
+    content =
+      description;
+  }
+
+  /*
+   * تصویر
+   */
+  let imageUrl =
+    firstNonEmpty(
+      $('meta[property="og:image"]').attr('content'),
+      $('meta[name="twitter:image"]').attr('content')
+    );
+
+  if (!imageUrl) {
+    const img =
+      $('article img')
+        .first();
+
+    if (
+      img.length
+    ) {
+      imageUrl =
+        firstNonEmpty(
+          img.attr('src'),
+          img.attr('data-src'),
+          img.attr('data-lazy-src')
+        );
+    }
+  }
+
+  if (imageUrl) {
+    try {
+      imageUrl =
+        new URL(
+          imageUrl,
+          url
+        ).toString();
+    } catch (error) {
+      imageUrl = '';
+    }
+  }
+
+  return {
+    id:
+      url,
+
+    title:
+      title,
+
+    description:
+      description,
+
+    content:
+      content,
+
+    text:
+      [
+        title,
+        content
+      ]
+        .filter(Boolean)
+        .join('\n'),
+
+    publishedAt:
+      publishedAt,
+
+    url:
+      url,
+
+    imageUrl:
+      imageUrl,
+
+    source:
+      source.name,
+
+    sourceUrl:
+      source.url
+  };
+}
+
+
+/* ============================================================
+ * Google News
+ * ============================================================
+ */
+
+async function fetchGoogleNewsSource(
+  source
+) {
+  /*
+   * Google News خروجی RSS است.
+   * اما عنوان‌ها ممکن است به منابع خارجی یا ملی
+   * اشاره کنند؛ بنابراین بعداً فیلتر محلی اعمال می‌شود.
+   */
+  return fetchRSSSource(
+    source
+  );
+}
+
+
+/* ============================================================
+ * تشخیص نوع منبع
+ * ============================================================
+ */
+
+async function fetchSource(
+  source
+) {
+  if (!source) {
+    return [];
+  }
+
+  console.log(
+    '🔎 دریافت: ' +
+    (source.name || source.id || 'منبع')
+  );
+
+  let items = [];
+
+  try {
+    const type =
+      String(
+        source.type || ''
+      ).toLowerCase();
+
+    /*
+     * Google News
+     */
+    if (
+      type === 'google-news' ||
+      String(source.id || '')
+        .startsWith('google-')
+    ) {
+      items =
+        await fetchGoogleNewsSource(
+          source
+        );
+    }
+
+    /*
+     * RSS
+     */
+    else if (
+      type === 'rss'
+    ) {
+      items =
+        await fetchRSSSource(
+          source
+        );
+    }
+
+    /*
+     * Telegram
+     */
+    else if (
+      type === 'telegram'
+    ) {
+      items =
+        await fetchTelegramSource(
+          source
+        );
+    }
+
+    /*
+     * HTML
+     */
+    else if (
+      type === 'html'
+    ) {
+      items =
+        await fetchHTMLSource(
+          source
+        );
+    }
+
+    else {
+      console.log(
+        '⚠️ نوع منبع پشتیبانی نمی‌شود: ' +
+        type
+      );
+    }
+  } catch (error) {
+    console.log(
+      '❌ خطا در دریافت ' +
+      source.name +
+      ': ' +
+      error.message
+    );
+  }
+
+  console.log(
+    '   📥 ' +
+    items.length +
+    ' خبر خام'
+  );
+
+  return items;
+}
+
+
+/* ============================================================
+ * Hash خبر
+ * ============================================================
+ */
+
+function createNewsHash(
+  item
+) {
+  const title =
+    normalizeForCompare(
+      item && item.title
+    );
+
+  const body =
+    normalizeForCompare(
+      item &&
+      firstNonEmpty(
+        item.content,
+        item.description,
+        item.text
+      )
+    ).slice(
+      0,
+      1200
+    );
+
+  const location =
+    normalizeForCompare(
+      detectLocation(item)
+    );
+
+  const url =
+    firstNonEmpty(
+      item && item.url,
+      item && item.link,
+      ''
+    );
+
+  return sha1(
+    [
+      title,
+      body,
+      location,
+      url
+    ].join('|')
+  );
+}
+
+
+/* ============================================================
+ * نرمال‌سازی خبر
+ * ============================================================
+ */
+
+function normalizeItem(
+  raw,
+  source
+) {
+  if (!raw) {
+    return null;
+  }
+
+  const item =
+    Object.assign(
+      {},
+      raw
+    );
+
+  item.source =
+    firstNonEmpty(
+      raw.source,
+      source && source.name,
+      'منبع نامشخص'
+    );
+
+  item.sourceName =
+    item.source;
+
+  item.sourceUrl =
+    firstNonEmpty(
+      raw.sourceUrl,
+      source && source.url,
+      ''
+    );
+
+  item.url =
+    firstNonEmpty(
+      raw.url,
+      raw.link,
+      raw.guid,
+      ''
+    );
+
+  item.title =
+    getTitle(
+      raw
+    );
+
+  item.content =
+    removeTitleFromBody(
+      item.title,
+      getArticleText(raw)
+    );
+
+  item.description =
+    item.content;
+
+  item.text =
+    [
+      item.title,
+      item.content
+    ]
+      .filter(Boolean)
+      .join('\n');
+
+  item.publishedDate =
+    getPublishedDate(
+      raw
+    );
+
+  item.publishedAt =
+    item.publishedDate
+      ? item.publishedDate.toISOString()
+      : null;
+
+  item.publishedAtFormatted =
+    item.publishedDate
+      ? formatPersianDate(
+          item.publishedDate
+        )
+      : '';
+
+  item.imageUrl =
+    extractImageUrl(
+      raw
+    );
+
+  item.imageBuffer =
+    null;
+
+  item.location =
+    detectLocation(
+      item
+    );
+
+  item.hash =
+    createNewsHash(
+      item
+    );
+
+  item.id =
+    firstNonEmpty(
+      raw.id,
+      raw.messageId,
+      item.url,
+      item.hash
+    );
+
+  return item;
+}
+
+
+/* ============================================================
+ * شباهت
+ * ============================================================
+ */
+
+function similarityScore(
+  a,
+  b
+) {
+  const aa =
+    normalizeForCompare(a);
+
+  const bb =
+    normalizeForCompare(b);
+
+  if (!aa || !bb) {
+    return 0;
+  }
+
+  if (aa === bb) {
+    return 1;
+  }
+
+  const wordsA =
+    new Set(
+      aa.split(' ')
+        .filter(Boolean)
+    );
+
+  const wordsB =
+    new Set(
+      bb.split(' ')
+        .filter(Boolean)
+    );
+
+  let common = 0;
+
+  wordsA.forEach(
+    function (word) {
+      if (
+        wordsB.has(word)
+      ) {
+        common++;
+      }
+    }
+  );
+
+  const union =
+    new Set(
+      Array.from(wordsA)
+        .concat(
+          Array.from(wordsB)
+        )
+    ).size;
+
+  return union
+    ? common / union
+    : 0;
+}
+
+
+function isDuplicateNews(
+  item,
+  accepted
+) {
+  if (
+    !item ||
+    !Array.isArray(accepted)
+  ) {
+    return false;
+  }
+
+  const hash =
+    item.hash ||
+    createNewsHash(item);
+
+  for (
+    let i = 0;
+    i < accepted.length;
+    i++
+  ) {
+    const old =
+      accepted[i];
+
+    if (!old) {
+      continue;
+    }
+
+    const oldHash =
+      old.hash ||
+      createNewsHash(old);
+
+    if (
+      hash &&
+      oldHash &&
+      hash === oldHash
+    ) {
+      return true;
+    }
+
+    /*
+     * عنوان تقریباً یکسان
+     */
+    if (
+      similarityScore(
+        item.title,
+        old.title
+      ) >= 0.84
+    ) {
+      return true;
+    }
+
+    /*
+     * متن تقریباً یکسان
+     */
+    if (
+      similarityScore(
+        item.content,
+        old.content
+      ) >= 0.92
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+
+/* ============================================================
+ * اعتبارسنجی
+ * ============================================================
+ */
+
+function validateNews(
+  item
+) {
+  const errors = [];
+
+  if (!item) {
+    errors.push(
+      'خبر خالی است'
+    );
+
+    return {
+      valid: false,
+      errors
+    };
+  }
+
+  if (
+    !item.title ||
+    item.title.length < 12
+  ) {
+    errors.push(
+      'عنوان نامعتبر'
+    );
+  }
+
+  if (
+    isIncompleteNews(item)
+  ) {
+    errors.push(
+      'خبر ناقص یا نامعتبر'
+    );
+  }
+
+  if (
+    REQUIRE_NEWS_DATE &&
+    !item.publishedDate
+  ) {
+    errors.push(
+      'تاریخ مشخص نیست'
+    );
+  }
+
+  if (
+    hasBlockedContent(item)
+  ) {
+    errors.push(
+      'محتوای غیرخبری'
+    );
+  }
+
+  return {
+    valid:
+      errors.length === 0,
+    errors
+  };
+}
+
+
+/* ============================================================
+ * فیلتر اصلی
+ * ============================================================
+ */
+
+function filterNews(
+  items,
+  options
+) {
+  options =
+    options || {};
+
+  const result = [];
+
+  const stats = {
+    input:
+      Array.isArray(items)
+        ? items.length
+        : 0,
+
+    invalid: 0,
+    blocked: 0,
+    old: 0,
+    nonLocal: 0,
+    foreign: 0,
+    duplicate: 0,
+    accepted: 0
+  };
+
+  if (
+    !Array.isArray(items)
+  ) {
+    return {
+      items: [],
+      stats
+    };
+  }
+
+  const maxAge =
+    Number(
+      options.maxAgeHours ||
+      NEWS_MAX_AGE_HOURS
+    );
+
+  const requireLocal =
+    options.requireLocal !== false;
+
+  for (
+    let i = 0;
+    i < items.length;
+    i++
+  ) {
+    const item =
+      normalizeItem(
+        items[i],
+        options.source
+      );
+
+    if (!item) {
+      stats.invalid++;
+      continue;
+    }
+
+    const validation =
+      validateNews(item);
+
+    if (
+      !validation.valid
+    ) {
+      if (
+        hasBlockedContent(item)
+      ) {
+        stats.blocked++;
+      } else {
+        stats.invalid++;
+      }
+
+      continue;
+    }
+
+    /*
+     * تاریخ
+     */
+    if (
+      !item.publishedDate
+    ) {
+      if (
+        REQUIRE_NEWS_DATE
+      ) {
+        stats.old++;
+        continue;
+      }
+    } else if (
+      !isRecentNews(
+        item,
+        maxAge
+      )
+    ) {
+      stats.old++;
+      continue;
+    }
+
+    /*
+     * خبر خارجی
+     */
+    if (
+      isForeignNews(item)
+    ) {
+      stats.foreign++;
+      continue;
+    }
+
+    /*
+     * خبر محلی
+     */
+    if (
+      requireLocal &&
+      !isLocalNews(item)
+    ) {
+      stats.nonLocal++;
+      continue;
+    }
+
+    /*
+     * تکراری
+     */
+    if (
+      isDuplicateNews(
+        item,
+        result
+      )
+    ) {
+      stats.duplicate++;
+      continue;
+    }
+
+    result.push(item);
+
+    stats.accepted++;
+
+    if (
+      result.length >=
+      Number(
+        options.limit ||
+        MAX_TOTAL_ITEMS
+      )
+    ) {
+      break;
+    }
+  }
+
+  /*
+   * جدیدترین اول
+   */
+  result.sort(
+    function (a, b) {
+      const ta =
+        a.publishedDate
+          ? a.publishedDate.getTime()
+          : 0;
+
+      const tb =
+        b.publishedDate
+          ? b.publishedDate.getTime()
+          : 0;
+
+      return tb - ta;
+    }
+  );
+
+  return {
+    items: result,
+    stats
+  };
+}
+
+
+/* ============================================================
+ * History
+ * ============================================================
+ */
+
+function filterAgainstHistory(
+  items,
+  history
+) {
+  if (
+    !Array.isArray(items)
+  ) {
+    return [];
+  }
+
+  if (
+    !Array.isArray(history)
+  ) {
+    return items;
+  }
+
+  const hashes =
+    new Set();
+
+  const urls =
+    new Set();
+
+  history.forEach(
+    function (entry) {
+      if (!entry) {
+        return;
+      }
+
+      if (entry.hash) {
+        hashes.add(
+          String(entry.hash)
+        );
+      }
+
+      if (entry.url) {
+        urls.add(
+          String(entry.url)
+        );
+      }
+
+      if (entry.link) {
+        urls.add(
+          String(entry.link)
+        );
+      }
+
+      if (entry.id) {
+        hashes.add(
+          String(entry.id)
+        );
+      }
+    }
+  );
+
+  return items.filter(
+    function (item) {
+      const hash =
+        item.hash ||
+        createNewsHash(item);
+
+      if (
+        hash &&
+        hashes.has(
+          String(hash)
+        )
+      ) {
+        return false;
+      }
+
+      if (
+        item.url &&
+        urls.has(
+          String(item.url)
+        )
+      ) {
+        return false;
+      }
+
+      return true;
+    }
+  );
+}
+
+
+/* ============================================================
+ * آماده‌سازی خبر
+ * ============================================================
+ */
+
+async function prepareNewsForTelegram(
+  item
+) {
+  if (!item) {
+    return null;
+  }
+
+  if (
+    item.imageUrl &&
+    !item.imageBuffer
+  ) {
+    item.imageBuffer =
+      await downloadImage(
+        item.imageUrl
+      );
+  }
+
+  return item;
+}
+
+
+/* ============================================================
+ * متن نهایی
+ * ============================================================
+ */
+
+function truncateText(
+  text,
+  maxLength
+) {
+  const value =
+    String(text || '')
+      .trim();
+
+  if (
+    value.length <=
+    maxLength
+  ) {
+    return value;
+  }
+
+  let result =
+    value.slice(
+      0,
+      maxLength
+    );
+
+  const lastSpace =
+    result.lastIndexOf(' ');
+
+  if (
+    lastSpace >
+    maxLength * 0.75
+  ) {
+    result =
+      result.slice(
+        0,
+        lastSpace
+      );
+  }
+
+  return (
+    result.trim() +
+    '…'
+  );
+}
+
+
+function buildNewsText(
+  item,
+  options
+) {
+  options =
+    options || {};
+
+  if (!item) {
+    return '';
+  }
+
+  const title =
+    getTitle(item);
+
+  let body =
+    removeTitleFromBody(
+      title,
+      getArticleText(item)
+    );
+
+  body =
+    truncateText(
+      body,
+      Number(
+        options.maxBodyLength ||
+        1600
+      )
+    );
+
+  const parts = [];
+
+  if (title) {
+    parts.push(
+      '📰 ' + title
+    );
+  }
+
+  if (body) {
+    parts.push(
+      '🔹 ' + body
+    );
+  }
+
+  /*
+   * تاریخ و ساعت واقعی خبر
+   */
+  if (
+    item.publishedDate
+  ) {
+    parts.push(
+      '🕐 ' +
+      formatPersianDate(
+        item.publishedDate
+      )
+    );
+  }
+
+  /*
+   * منبع در متن
+   */
+  if (
+    item.source
+  ) {
+    parts.push(
+      '📌 منبع: ' +
+      item.source
+    );
+  }
+
+  /*
+   * لینک خبر عمداً حذف شده است.
+   */
+
+  /*
+   * شناسه کانال
+   */
+  if (
+    options.appendChannel !== false
+  ) {
+    const channel =
+      process.env.NEWS_CHANNEL_USERNAME ||
+      '@ArasbaranNews';
+
+    parts.push(
+      '📰 اخبار ارسباران'
+    );
+
+    if (channel) {
+      parts.push(
+        channel
+      );
+    }
+  }
+
+  return parts
+    .filter(Boolean)
+    .join('\n\n')
+    .trim();
+}
+
+
+function formatNews(
+  item,
+  options
+) {
+  return buildNewsText(
+    item,
+    options
+  );
+}
+
+
+/* ============================================================
+ * پردازش نهایی
+ * ============================================================
+ */
+
+function processNews(
+  rawItems,
+  options
+) {
+  options =
+    options || {};
+
+  const filtered =
+    filterNews(
+      rawItems,
+      options
+    );
+
+  let finalItems =
+    filtered.items;
+
+  if (
+    Array.isArray(
+      options.history
+    )
+  ) {
+    finalItems =
+      filterAgainstHistory(
+        finalItems,
+        options.history
+      );
+  }
+
+  return {
+    items:
+      finalItems,
+    stats:
+      filtered.stats
+  };
+}
+
+
+/* ============================================================
+ * اولویت منابع
+ * ============================================================
+ */
+
+function sourcePriority(
+  sourceName
+) {
+  const name =
+    normalizePersian(
+      sourceName
+    );
+
+  if (
+    name.includes(
+      'فرمانداری'
+    )
+  ) {
+    return 100;
+  }
+
+  if (
+    name.includes(
+      'هوراند خبر'
+    )
+  ) {
+    return 95;
+  }
+
+  if (
+    name.includes(
+      'ورزقان'
+    )
+  ) {
+    return 94;
+  }
+
+  if (
+    name.includes(
+      'اهر خبر'
+    )
+  ) {
+    return 93;
+  }
+
+  if (
+    name.includes(
+      'کلیبر'
+    )
+  ) {
+    return 92;
+  }
+
+  if (
+    name.includes(
+      'تسنیم'
+    )
+  ) {
+    return 85;
+  }
+
+  if (
+    name.includes(
+      'ایرنا'
+    )
+  ) {
+    return 85;
+  }
+
+  if (
+    name.includes(
+      'ایسنا'
+    )
+  ) {
+    return 85;
+  }
+
+  return 50;
+}
+
+
+function sortNews(
+  items
+) {
+  return items
+    .slice()
+    .sort(
+      function (a, b) {
+        const pa =
+          sourcePriority(
+            a.source
+          );
+
+        const pb =
+          sourcePriority(
+            b.source
+          );
+
+        /*
+         * ابتدا تاریخ مهم‌تر است.
+         */
+        const ta =
+          a.publishedDate
+            ? a.publishedDate.getTime()
+            : 0;
+
+        const tb =
+          b.publishedDate
+            ? b.publishedDate.getTime()
+            : 0;
+
+        if (ta !== tb) {
+          return tb - ta;
+        }
+
+        return pb - pa;
+      }
+    );
+}
+
+
+/* ============================================================
+ * دریافت همه منابع
+ * ============================================================
+ */
+
+async function fetchAllNews(
+  sources,
+  options
+) {
+  options =
+    options || {};
+
+  const sourceList =
+    Array.isArray(sources)
+      ? sources
+      : [];
+
+  const allItems = [];
+
+  console.log('');
+  console.log(
+    '📡 منابع فعال: ' +
+    sourceList.length
+  );
+  console.log('');
+
+  /*
+   * منابع را یکی‌یکی دریافت می‌کنیم
+   * تا فشار زیادی به سایت‌ها وارد نشود.
+   */
+  for (
+    let i = 0;
+    i < sourceList.length;
+    i++
+  ) {
+    const source =
+      sourceList[i];
+
+    if (
+      !source ||
+      source.enabled === false
+    ) {
+      continue;
+    }
+
+    const items =
+      await fetchSource(
+        source
+      );
+
+    allItems.push(
+      ...items
+    );
+
+    /*
+     * فاصله کوتاه بین منابع
+     */
+    if (
+      i <
+      sourceList.length - 1
+    ) {
+      await sleep(150);
+    }
+  }
+
+  console.log('');
+  console.log(
+    '📦 خام: ' +
+    allItems.length
+  );
+
+  /*
+   * ابتدا نرمال‌سازی
+   */
+  const normalized =
+    allItems
+      .map(
+        function (item) {
+          return normalizeItem(
+            item,
+            {
+              name:
+                item.source,
+              url:
+                item.sourceUrl
+            }
+          );
+        }
+      )
+      .filter(Boolean);
+
+  /*
+   * حذف تکراری اولیه
+   */
+  const unique = [];
+
+  for (
+    let i = 0;
+    i < normalized.length;
+    i++
+  ) {
+    if (
+      !isDuplicateNews(
+        normalized[i],
+        unique
+      )
+    ) {
+      unique.push(
+        normalized[i]
+      );
+    }
+  }
+
+  console.log(
+    '♻️ بدون تکرار: ' +
+    unique.length
+  );
+
+  /*
+   * تاریخ
+   */
+  const recent =
+    unique.filter(
+      function (item) {
+        if (
+          !item.publishedDate
+        ) {
+          return !REQUIRE_NEWS_DATE;
+        }
+
+        return isRecentNews(
+          item,
+          NEWS_MAX_AGE_HOURS
+        );
+      }
+    );
+
+  console.log(
+    '⏱️ کمتر از ' +
+    NEWS_MAX_AGE_HOURS +
+    ' ساعت: ' +
+    recent.length
+  );
+
+  /*
+   * محلی
+   */
+  const local =
+    recent.filter(
+      function (item) {
+        return isLocalNews(
+          item
+        );
+      }
+    );
+
+  console.log(
+    '📍 محلی: ' +
+    local.length
+  );
+
+  /*
+   * فیلتر نهایی
+   */
+  const finalItems =
+    local
+      .filter(
+        function (item) {
+          return !isForeignNews(
+            item
+          );
+        }
+      )
+      .filter(
+        function (item) {
+          return !hasBlockedContent(
+            item
+          );
+        }
+      );
+
+  console.log(
+    '🌍 نهایی: ' +
+    finalItems.length
+  );
+
+  /*
+   * مرتب‌سازی
+   */
+  const sorted =
+    sortNews(
+      finalItems
+    );
+
+  /*
+   * محدودیت کل
+   */
+  return sorted.slice(
+    0,
+    Number(
+      options.maxTotal ||
+      MAX_TOTAL_ITEMS
+    )
+  );
+}
+
+
+/* ============================================================
+ * Sleep
+ * ============================================================
+ */
+
+function sleep(
+  ms
+) {
+  return new Promise(
+    function (resolve) {
+      setTimeout(
+        resolve,
+        ms
+      );
+    }
+  );
+}
+
+
+/* ============================================================
+ * خلاصه خبر
+ * ============================================================
+ */
+
+function getNewsSummary(
+  item
+) {
+  if (!item) {
+    return null;
+  }
+
+  return {
+    title:
+      item.title || '',
+
+    source:
+      item.source || '',
+
+    location:
+      detectLocation(item),
+
+    publishedAt:
+      item.publishedAt || null,
+
+    publishedAtFormatted:
+      item.publishedAtFormatted || '',
+
+    image:
+      Boolean(
+        item.imageUrl
+      ),
+
+    url:
+      item.url || '',
+
+    hash:
+      item.hash || ''
+  };
+}
+
+
+/* ============================================================
+ * شناسه
+ * ============================================================
+ */
+
+function getNewsId(
+  item
+) {
+  if (!item) {
+    return '';
+  }
+
+  return (
+    item.hash ||
+    createNewsHash(item) ||
+    item.url ||
+    ''
+  );
+}
+
+
+/* ============================================================
+ * سازگاری با نسخه‌های قبلی
+ * ============================================================
+ */
+
+function cleanNews(
+  item,
+  source
+) {
+  return normalizeItem(
+    item,
+    source
+  );
+}
+
+
+function isValidNews(
+  item
+) {
+  return validateNews(
+    item
+  ).valid;
+}
+
+
+function isOldNews(
+  item,
+  hours
+) {
+  if (
+    !item ||
+    !item.publishedDate
+  ) {
+    return false;
+  }
+
+  return !isRecentNews(
+    item,
+    hours ||
+      NEWS_MAX_AGE_HOURS
+  );
+}
+
+
+/* ============================================================
+ * Export
+ * ============================================================
+ */
+
+module.exports = {
+  /* دریافت */
+  fetchAllNews,
+  fetchSource,
+  fetchRSSSource,
+  fetchGoogleNewsSource,
+  fetchTelegramSource,
+  fetchHTMLSource,
+  fetchArticlePage,
+
+  /* پردازش */
+  processNews,
+  filterNews,
+  filterAgainstHistory,
+  normalizeItem,
+  cleanNews,
+
+  /* فیلتر محلی */
+  isLocalNews,
+  isVarzqanRelevant,
+  isHorandRelevant,
+  isAharRelevant,
+  isKaleybarRelevant,
+  isKhodaAfarinRelevant,
+  isForeignNews,
+  hasBlockedContent,
+  isIncompleteNews,
+
+  /* تاریخ */
+  parseDate,
+  getPublishedDate,
+  isRecentNews,
+  isOldNews,
+  formatPersianDate,
+  toPersianDigits,
+
+  /* متن */
+  cleanText,
+  normalizePersian,
+  normalizeForCompare,
+  removeUrls,
+  removeChannelSignatures,
+  removeSourceNoise,
+  getTitle,
+  getArticleText,
+  removeTitleFromBody,
+  buildNewsText,
+  formatNews,
+
+  /* تصویر */
+  extractImageUrl,
+  downloadImage,
+  prepareNewsForTelegram,
+
+  /* تکراری */
+  createNewsHash,
+  similarityScore,
+  isDuplicateNews,
+
+  /* سایر */
+  validateNews,
+  isValidNews,
+  detectLocation,
+  getNewsId,
+  getNewsSummary
+};
