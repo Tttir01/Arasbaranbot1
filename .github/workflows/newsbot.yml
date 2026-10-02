@@ -176,6 +176,7 @@ jobs:
           NEWS_MAX_AGE_HOURS: 24
           MAX_HISTORY_ITEMS: 5000
           REQUEST_TIMEOUT: 25000
+          NEWS_MAX_AGE_HOURS: 24
           DATA_FILE: data/news-history.json
         run: |
           echo "================================"
@@ -246,7 +247,7 @@ jobs:
           echo "TELEGRAM DESTINATION SEND TEST"
           echo "================================"
           node - <<'NODE'
-          const { getMe, sendMessage, getChat } = require('./src/telegram');
+          const { getMe, sendMessage, getChat, getChatAdministrators } = require('./src/telegram');
           const chatId = process.env.TELEGRAM_CHANNEL_ID;
           (async () => {
             try {
@@ -257,6 +258,21 @@ jobs:
               console.log('TARGET CHAT TYPE:', chat.type);
               console.log('TARGET CHAT TITLE:', chat.title || '(no title)');
               console.log('TARGET CHAT USERNAME:', chat.username ? '@' + chat.username : '(private/no username)');
+              console.log('BOT ID:', bot.id);
+              console.log('Checking channel administrators...');
+              try {
+                const admins = await getChatAdministrators(chatId);
+                const botAdmin = admins.find(a => a.user && a.user.id === bot.id);
+                console.log('ADMIN COUNT:', admins.length);
+                if (botAdmin) {
+                  console.log('BOT ADMIN STATUS:', botAdmin.status);
+                  console.log('BOT CAN POST:', botAdmin.can_post_messages === true ? 'YES' : 'NO/UNSPECIFIED');
+                } else {
+                  console.log('BOT ADMIN STATUS: NOT FOUND IN ADMINISTRATORS');
+                }
+              } catch (adminError) {
+                console.log('ADMINISTRATOR CHECK FAILED:', adminError.message);
+              }
               const marker = '🧪 تست اتصال ربات اخبار ارسباران';
               console.log('Sending temporary test message...');
               const sent = await sendMessage(marker);
