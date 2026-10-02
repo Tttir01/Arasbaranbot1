@@ -176,7 +176,6 @@ jobs:
           NEWS_MAX_AGE_HOURS: 24
           MAX_HISTORY_ITEMS: 5000
           REQUEST_TIMEOUT: 25000
-          NEWS_MAX_AGE_HOURS: 24
           DATA_FILE: data/news-history.json
         run: |
           echo "================================"
@@ -295,6 +294,7 @@ jobs:
           MAX_ITEMS_PER_SOURCE: 10
           MAX_TOTAL_ITEMS: 30
           REQUEST_TIMEOUT: 25000
+          NEWS_MAX_AGE_HOURS: 24
           DATA_FILE: data/news-history.json
         run: |
           echo "================================"
