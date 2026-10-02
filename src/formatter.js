@@ -1,6 +1,6 @@
 'use strict';
 
-const CHANNEL_ID = '@arrasbarannews';
+const CHANNEL_ID = '@varzganmedia';
 
 function toPersianDigits(value) {
   return String(value)
