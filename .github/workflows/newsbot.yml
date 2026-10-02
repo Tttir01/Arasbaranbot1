@@ -71,7 +71,7 @@ jobs:
       - name: Check Telegram Secrets
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHANNEL_ID: -1003955581255
+          TELEGRAM_CHANNEL_ID: '@varzqannews'
         run: |
           echo "================================"
           echo "TELEGRAM CONFIGURATION CHECK"
@@ -169,7 +169,7 @@ jobs:
       - name: Test application modules
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHANNEL_ID: -1003955581255
+          TELEGRAM_CHANNEL_ID: '@varzqannews'
           TIMEZONE: Asia/Tehran
           MAX_ITEMS_PER_SOURCE: 10
           MAX_TOTAL_ITEMS: 30
@@ -209,7 +209,7 @@ jobs:
       - name: Test Telegram connection
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHANNEL_ID: -1003955581255
+          TELEGRAM_CHANNEL_ID: '@varzqannews'
           TIMEZONE: Asia/Tehran
           MAX_ITEMS_PER_SOURCE: 10
           MAX_TOTAL_ITEMS: 30
@@ -240,7 +240,7 @@ jobs:
       - name: Verify Telegram destination and send permission
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHANNEL_ID: -1003955581255
+          TELEGRAM_CHANNEL_ID: '@varzqannews'
         run: |
           echo "================================"
           echo "TELEGRAM DESTINATION SEND TEST"
@@ -257,11 +257,11 @@ jobs:
               console.log('TARGET CHAT TYPE:', chat.type);
               console.log('TARGET CHAT TITLE:', chat.title || '(no title)');
               console.log('TARGET CHAT USERNAME:', chat.username ? '@' + chat.username : '(private/no username)');
-              if (String(chat.id) !== '-1003955581255') {
-                throw new Error('مقصد Telegram اشتباه است؛ شناسه کانال موردنظر باید -1003955581255 باشد.');
-              }
               if (chat.type !== 'channel') {
                 throw new Error('مقصد Telegram کانال نیست؛ نوع مقصد: ' + chat.type);
+              }
+              if ((chat.username || '').toLowerCase() !== 'varzqannews') {
+                throw new Error('مقصد Telegram اشتباه است؛ کانال موردنظر باید @varzqannews باشد.');
               }
               console.log('BOT ID:', bot.id);
               console.log('Checking channel administrators...');
@@ -278,7 +278,7 @@ jobs:
               } catch (adminError) {
                 console.log('ADMINISTRATOR CHECK FAILED:', adminError.message);
               }
-              const marker = '🧪 تست اتصال ربات اخبار ارسباران';
+              const marker = '🧪 تست اتصال ربات ورزقان مدیا';
               console.log('Sending temporary test message...');
               const sent = await sendMessage(marker);
               console.log('TELEGRAM SEND: OK');
@@ -296,7 +296,7 @@ jobs:
       - name: Run Arasbaran News Bot
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHANNEL_ID: -1003955581255
+          TELEGRAM_CHANNEL_ID: '@varzqannews'
           TIMEZONE: Asia/Tehran
           MAX_ITEMS_PER_SOURCE: 10
           MAX_TOTAL_ITEMS: 30
