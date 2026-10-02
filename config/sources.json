@@ -175,6 +175,71 @@
         "خاروانا"
       ],
       "enabled": true
+    },
+    {
+      "id": "telegram-dizmar",
+      "name": "دیزمار",
+      "type": "telegram",
+      "url": "https://t.me/s/dizmar",
+      "keywords": [
+        "ورزقان",
+        "خاروانا",
+        "دیزمار",
+        "سونگون"
+      ],
+      "areas": [
+        "ورزقان",
+        "خاروانا"
+      ],
+      "enabled": true
+    },
+    {
+      "id": "telegram-varzeghannews",
+      "name": "ورزقان نیوز",
+      "type": "telegram",
+      "url": "https://t.me/s/varzeghannews",
+      "keywords": [
+        "ورزقان",
+        "خاروانا",
+        "سونگون"
+      ],
+      "areas": [
+        "ورزقان",
+        "خاروانا"
+      ],
+      "enabled": true
+    },
+    {
+      "id": "telegram-farmandari-varzqan",
+      "name": "فرمانداری شهرستان ورزقان",
+      "type": "telegram",
+      "url": "https://t.me/s/farmandari_varzeghan",
+      "keywords": [
+        "ورزقان",
+        "خاروانا",
+        "فرمانداری"
+      ],
+      "areas": [
+        "ورزقان",
+        "خاروانا"
+      ],
+      "enabled": true
+    },
+    {
+      "id": "google-irib-varzqan",
+      "name": "صدا و سیمای مرکز آذربایجان شرقی - ورزقان و خاروانا",
+      "type": "rss",
+      "url": "https://news.google.com/rss/search?q=site%3Airibnews.ir+%28%D9%88%D8%B1%D8%B2%D9%82%D8%A7%D9%86+OR+%D8%AE%D8%A7%D8%B1%D9%88%D8%A7%D9%86%D8%A7%29&hl=fa&gl=IR&ceid=IR%3Afa",
+      "keywords": [
+        "ورزقان",
+        "خاروانا",
+        "سونگون"
+      ],
+      "areas": [
+        "ورزقان",
+        "خاروانا"
+      ],
+      "enabled": true
     }
   ]
 }
