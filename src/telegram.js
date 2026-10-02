@@ -368,6 +368,45 @@ async function getMe() {
   );
 }
 
+async function getChat(chatId) {
+  return telegramRequest(
+    'getChat',
+    {
+      chat_id: chatId || process.env.TELEGRAM_CHANNEL_ID
+    }
+  );
+}
+
+async function getChatMember(chatId, userId) {
+  return telegramRequest(
+    'getChatMember',
+    {
+      chat_id: chatId || process.env.TELEGRAM_CHANNEL_ID,
+      user_id: userId
+    }
+  );
+}
+
+async function getTargetChatInfo() {
+  const chatId = process.env.TELEGRAM_CHANNEL_ID;
+
+  if (!chatId) {
+    throw new Error(
+      'TELEGRAM_CHANNEL_ID تنظیم نشده است.'
+    );
+  }
+
+  const bot = await getMe();
+  const chat = await getChat(chatId);
+  const member = await getChatMember(chatId, bot.id);
+
+  return {
+    bot,
+    chat,
+    member
+  };
+}
+
 async function sendMessage(text) {
   const chatId =
     process.env.TELEGRAM_CHANNEL_ID;
@@ -451,6 +490,9 @@ async function sendVideo(
 
 module.exports = {
   getMe,
+  getChat,
+  getChatMember,
+  getTargetChatInfo,
   sendMessage,
   sendPhoto,
   sendVideo,
