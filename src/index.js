@@ -6,6 +6,7 @@ const { fetchAllNews } = require('./news');
 const { loadSources } = require('./sources');
 const { formatNews } = require('./formatter');
 const { getMe, sendMessage, sendPhoto, sendVideo } = require('./telegram');
+const { publishNews: publishInstagram, enabled: instagramEnabled } = require('./instagram');
 const { loadHistory, hasNews, saveNews } = require('./storage');
 
 const CONFIG = {
@@ -137,10 +138,24 @@ async function main() {
     try {
       const type = await sendNewsItem(item, message);
 
+      // ابتدا تاریخچه تلگرام ثبت می‌شود تا خطای Instagram باعث ارسال تکراری تلگرام نشود.
       saveNews(item);
       sent++;
 
-      console.log(`✅ ارسال شد: ${type}`);
+      console.log(`✅ ارسال شد به Telegram: ${type}`);
+
+      if (instagramEnabled()) {
+        try {
+          const ig = await publishInstagram(item, message);
+          if (ig.skipped) {
+            console.log(`ℹ️ Instagram رد شد: ${ig.reason}`);
+          } else {
+            console.log(`📸 Instagram منتشر شد: ${ig.type} / ${ig.mediaId}`);
+          }
+        } catch (instagramError) {
+          console.log(`⚠️ Instagram منتشر نشد: ${instagramError.message}`);
+        }
+      }
 
       await new Promise(resolve => setTimeout(resolve, 1200));
     } catch (error) {
