@@ -3474,11 +3474,11 @@ function rewriteNewsText(text) {
    */
   value = removeSourceNoise(value);
   value = value.replace(
-    /(?:https?:\\/\\/|www\\.)\\S+/gi,
+    /(?:https?:\/\/|www\.)\S+/gi,
     ' '
   );
   value = value.replace(
-    /(?:^|\\s)@[A-Za-z0-9_]{4,64}\\b/g,
+    /(?:^|\s)@[A-Za-z0-9_]{4,64}\b/g,
     ' '
   );
 
