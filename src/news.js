@@ -3495,6 +3495,46 @@ function rewriteNewsText(text) {
   return value.replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
 }
 
+function generateNewHeadline(originalTitle, body) {
+  const sourceTitle = rewriteNewsText(originalTitle || '').replace(/[\n\r]+/g, ' ').trim();
+  const context = rewriteNewsText(body || '').replace(/[\n\r]+/g, ' ').trim();
+  const text = (sourceTitle + ' ' + context).replace(/[ ]+/g, ' ').trim();
+
+  const place =
+    (text.match(/ورزقان|خاروانا|دیزمار|جوشین|سیه[‌ ]?رود|آذربایجان شرقی/) || [])[0] || '';
+  const subject =
+    (text.match(/مدرسه|دانش‌آموز|فرمانداری|شهرداری|راه|جاده|محور|کشاورزی|برق|گاز|آب|بارندگی|زلزله|هلال احمر|بیمارستان|سلامت|ورزش|فرهنگ|محیط زیست|طبیعت|تولید|اشتغال|جلسه|پروژه|طرح|افتتاح/) || [])[0] || '';
+
+  if (/افتتاح|بهره[‌ ]?برداری|راه[‌ ]?اندازی/.test(text)) {
+    return place ? `یک طرح تازه در ${place} وارد مرحله بهره‌برداری شد` : 'یک طرح تازه وارد مرحله بهره‌برداری شد';
+  }
+  if (/بارش|بارندگی|برف|سامانه بارشی|هواشناسی/.test(text)) {
+    return place ? `تغییرات جوی در ${place}؛ آخرین وضعیت اعلام شد` : 'آخرین وضعیت جوی اعلام شد';
+  }
+  if (/تصادف|حادثه|واژگونی|آتش[‌ ]?سوزی|حریق|نجات/.test(text)) {
+    return place ? `جزئیات یک حادثه در ${place} اعلام شد` : 'جزئیات یک حادثه اعلام شد';
+  }
+  if (/جلسه|نشست|دیدار|بررسی|تصمیم/.test(text)) {
+    return place ? `تصمیم‌های تازه برای ${place} در یک نشست بررسی شد` : 'تصمیم‌های تازه در یک نشست بررسی شد';
+  }
+  if (/مدرسه|دانش‌آموز|آموزش و پرورش/.test(text)) {
+    return place ? `خبر آموزشی تازه از ${place}` : 'خبر آموزشی تازه منتشر شد';
+  }
+  if (/کشاورزی|دامداری|باغ|محصول|آب کشاورزی/.test(text)) {
+    return place ? `تازه‌ترین خبر از بخش کشاورزی ${place}` : 'تازه‌ترین خبر از بخش کشاورزی';
+  }
+  if (/برق|گاز|آب و فاضلاب|آبفا/.test(text)) {
+    return place ? `وضعیت خدمات زیرساختی در ${place به‌صورت تازه اعلام شد` : 'وضعیت خدمات زیرساختی اعلام شد';
+  }
+  if (subject && place) {
+    return `آخرین خبر درباره ${subject} در ${place}`;
+  }
+  if (place) {
+    return `آخرین تحولات در ${place}`;
+  }
+  return 'آخرین جزئیات این خبر اعلام شد';
+}
+
 function buildNewsText(
   item,
   options
@@ -3506,10 +3546,11 @@ function buildNewsText(
     return '';
   }
 
-  let title =
-    rewriteNewsText(
-      getTitle(item)
-    );
+  const originalTitle = getTitle(item);
+  let title = generateNewHeadline(
+    originalTitle,
+    getArticleText(item)
+  );
 
   let body =
     removeTitleFromBody(
