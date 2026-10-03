@@ -3466,74 +3466,149 @@ function truncateText(
 }
 
 
-function rewriteNewsText(text) {
-  let value = cleanText(text);
-  value = removeSourceNoise(value)
-    .replace(/(?:https?:\/\/|www\.)\S+/gi, ' ')
-    .replace(/(?:^|\s)@[A-Za-z0-9_]{4,64}\b/g, ' ');
-
-  // حفظ همه نکات اصلی، اما بازچینی و بازنویسی جمله‌ها برای جلوگیری از کپی مستقیم
-  const sentences = value
+function splitNewsSentences(text) {
+  return String(text || '')
+    .replace(/\r/g, '\n')
     .split(/(?<=[.!؟؛])\s+|\n+/)
-    .map(s => s.trim())
-    .filter(Boolean);
+    .map(function (s) {
+      return s
+        .replace(/^[-•▪️🔹📰]+\s*/u, '')
+        .trim();
+    })
+    .filter(function (s) {
+      return s.length >= 18;
+    });
+}
 
-  value = sentences.map(s => s
-    .replace(/^به گزارش\s+/i, '')
-    .replace(/^بر اساس گزارش\s+/i, '')
-    .replace(/اعلام کردند/g, 'خبر دادند')
-    .replace(/اعلام کرد/g, 'خبر داد')
-    .replace(/اظهار داشتند/g, 'توضیح دادند')
-    .replace(/اظهار داشت/g, 'توضیح داد')
+function removeAttributionNoise(sentence) {
+  return String(sentence || '')
+    .replace(/^به گزارش(?: خبرنگار)?\s+/i, '')
+    .replace(/^بر اساس گزارش(?: خبرنگار)?\s+/i, '')
+    .replace(/^در گفت‌وگو با[^،:؛]+[،:؛]\s*/i, '')
+    .replace(/^به گفته[^،:؛]+[،:؛]\s*/i, '')
+    .replace(/^وی در ادامه افزود[،:؛]?\s*/i, '')
+    .replace(/^این مسئول گفت[،:؛]?\s*/i, '')
+    .replace(/^این مقام مسئول گفت[،:؛]?\s*/i, '')
+    .replace(/^همچنین اعلام شد که\s+/i, '')
+    .replace(/^همچنین اعلام کرد که\s+/i, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
+function rewriteSentenceStructure(sentence, index) {
+  let s = removeAttributionNoise(sentence);
+
+  s = s
+    .replace(/اعلام کرد(?: که)?/g, 'از اعلامِ')
+    .replace(/اعلام کردند(?: که)?/g, 'از اعلامِ')
+    .replace(/اظهار داشت(?: که)?/g, 'از توضیحات')
+    .replace(/اظهار داشتند(?: که)?/g, 'از توضیحات')
+    .replace(/خبر داد(?: که)?/g, 'از این خبر حکایت دارد که')
     .replace(/در پی/g, 'پس از')
     .replace(/طی امروز/g, 'امروز')
+    .replace(/در روز جاری/g, 'امروز')
     .replace(/صبح امروز/g, 'امروز صبح')
-    .replace(/گفت:/g, 'در این باره گفت:')
-    .replace(/گفتند:/g, 'در این باره توضیح دادند:')
-  ).join(' ');
+    .replace(/عصر امروز/g, 'امروز عصر')
+    .replace(/به منظور/g, 'برای')
+    .replace(/در راستای/g, 'با هدف')
+    .replace(/صورت گرفت/g, 'انجام شد')
+    .replace(/انجام گرفت/g, 'انجام شد')
+    .replace(/مورد بررسی قرار گرفت/g, 'بررسی شد')
+    .replace(/مورد بهره‌برداری قرار گرفت/g, 'به بهره‌برداری رسید')
+    .replace(/مورد بهره برداری قرار گرفت/g, 'به بهره‌برداری رسید')
+    .replace(/خواهد بود/g, 'است')
+    .replace(/می‌باشد/g, 'است')
+    .replace(/می باشد/g, 'است');
 
-  return value.replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
+  if (index > 0) {
+    s = s
+      .replace(/^اما\s+/i, 'با این حال، ')
+      .replace(/^همچنین\s+/i, 'در ادامه، ')
+      .replace(/^بنابراین\s+/i, 'در نتیجه، ');
+  }
+
+  return s
+    .replace(/[ \t]+/g, ' ')
+    .trim();
 }
 
-function generateNewHeadline(originalTitle, body) {
-  const sourceTitle = rewriteNewsText(originalTitle || '').replace(/[\n\r]+/g, ' ').trim();
-  const context = rewriteNewsText(body || '').replace(/[\n\r]+/g, ' ').trim();
-  const text = (sourceTitle + ' ' + context).replace(/[ ]+/g, ' ').trim();
+function deduplicateSentences(sentences) {
+  const out = [];
+  sentences.forEach(function (sentence) {
+    const normalized = normalizeForCompare(sentence);
+    if (!normalized) return;
 
-  const place =
-    (text.match(/ورزقان|خاروانا|دیزمار|جوشین|سیه[‌ ]?رود|آذربایجان شرقی/) || [])[0] || '';
-  const subject =
-    (text.match(/مدرسه|دانش‌آموز|فرمانداری|شهرداری|راه|جاده|محور|کشاورزی|برق|گاز|آب|بارندگی|زلزله|هلال احمر|بیمارستان|سلامت|ورزش|فرهنگ|محیط زیست|طبیعت|تولید|اشتغال|جلسه|پروژه|طرح|افتتاح/) || [])[0] || '';
+    const repeated = out.some(function (existing) {
+      const score = similarityScore(existing, sentence);
+      return score >= 0.68 ||
+        normalizeForCompare(existing) === normalized;
+    });
 
-  if (/افتتاح|بهره[‌ ]?برداری|راه[‌ ]?اندازی/.test(text)) {
-    return place ? `یک طرح تازه در ${place} وارد مرحله بهره‌برداری شد` : 'یک طرح تازه وارد مرحله بهره‌برداری شد';
-  }
-  if (/بارش|بارندگی|برف|سامانه بارشی|هواشناسی/.test(text)) {
-    return place ? `تغییرات جوی در ${place}؛ آخرین وضعیت اعلام شد` : 'آخرین وضعیت جوی اعلام شد';
-  }
-  if (/تصادف|حادثه|واژگونی|آتش[‌ ]?سوزی|حریق|نجات/.test(text)) {
-    return place ? `جزئیات یک حادثه در ${place} اعلام شد` : 'جزئیات یک حادثه اعلام شد';
-  }
-  if (/جلسه|نشست|دیدار|بررسی|تصمیم/.test(text)) {
-    return place ? `تصمیم‌های تازه برای ${place} در یک نشست بررسی شد` : 'تصمیم‌های تازه در یک نشست بررسی شد';
-  }
-  if (/مدرسه|دانش‌آموز|آموزش و پرورش/.test(text)) {
-    return place ? `خبر آموزشی تازه از ${place}` : 'خبر آموزشی تازه منتشر شد';
-  }
-  if (/کشاورزی|دامداری|باغ|محصول|آب کشاورزی/.test(text)) {
-    return place ? `تازه‌ترین خبر از بخش کشاورزی ${place}` : 'تازه‌ترین خبر از بخش کشاورزی';
-  }
-  if (/برق|گاز|آب و فاضلاب|آبفا/.test(text)) {
-    return place ? `وضعیت خدمات زیرساختی در ${place} به‌صورت تازه اعلام شد` : 'وضعیت خدمات زیرساختی اعلام شد';
-  }
-  if (subject && place) {
-    return `آخرین خبر درباره ${subject} در ${place}`;
-  }
-  if (place) {
-    return `آخرین تحولات در ${place}`;
-  }
-  return 'آخرین جزئیات این خبر اعلام شد';
+    if (!repeated) out.push(sentence);
+  });
+  return out;
 }
+
+function reorderNewsSentences(sentences) {
+  if (sentences.length <= 2) return sentences;
+
+  const importance = function (s) {
+    let score = 0;
+    if (/ورزقان|خاروانا|دیزمار|جوشین|سیه.?رود/.test(s)) score += 5;
+    if (/افتتاح|بهره.?برداری|انتصاب|تصمیم|مصوبه|آغاز|توقف|قطعی|حادثه|تصادف|واژگونی|آتش|بارش|برف|زلزله|سیل/.test(s)) score += 4;
+    if (/عدد|درصد|کیلومتر|میلیارد|میلیون|نفر|روستا|مدرسه|پروژه/.test(s)) score += 2;
+    if (/گفت|اظهار|توضیح|اعلام/.test(s)) score -= 1;
+    return score;
+  };
+
+  return sentences
+    .map(function (sentence, index) {
+      return { sentence, index, score: importance(sentence) };
+    })
+    .sort(function (a, b) {
+      if (b.score !== a.score) return b.score - a.score;
+      return a.index - b.index;
+    })
+    .map(function (x) { return x.sentence; });
+}
+
+function rewriteNewsText(text) {
+  let value = removeSourceNoise(cleanText(text))
+    .replace(/(?:https?:\/\/|www\.)\S+/gi, ' ')
+    .replace(/(?:^|\s)@[A-Za-z0-9_]{4,64}\b/g, ' ')
+    .replace(/[ \t]+/g, ' ')
+    .trim();
+
+  if (!value) return '';
+
+  const originalSentences = splitNewsSentences(value);
+  let sentences = originalSentences
+    .map(rewriteSentenceStructure)
+    .filter(Boolean);
+
+  sentences = deduplicateSentences(sentences);
+  sentences = reorderNewsSentences(sentences);
+
+  // متن نهایی نباید شبیه یک کپی خط‌به‌خط از منبع باشد.
+  // اطلاعات حفظ می‌شود، اما ترتیب، اتصال و ساختار جمله‌ها تغییر می‌کند.
+  if (sentences.length >= 2) {
+    const lead = sentences[0].replace(/[؛:]?$/, '؛');
+    const details = sentences.slice(1).map(function (s, i) {
+      if (i === 0) return 'در جزئیات این خبر، ' + s.charAt(0).toLowerCase() + s.slice(1);
+      return s;
+    });
+    value = [lead].concat(details).join(' ');
+  } else {
+    value = sentences.join(' ');
+  }
+
+  return value
+    .replace(/\s+؛/g, '؛')
+    .replace(/؛\s*؛/g, '؛')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim();
+}
+
 
 function buildNewsText(
   item,
