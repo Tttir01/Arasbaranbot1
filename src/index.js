@@ -10,14 +10,14 @@ const { loadHistory, hasNews, saveNews } = require('./storage');
 
 const CONFIG = {
   timezone: process.env.TIMEZONE || 'Asia/Tehran',
-  maxPostsPerRun: Number(process.env.MAX_POSTS_PER_RUN || 5)
+  maxPostsPerRun: Number(process.env.MAX_POSTS_PER_RUN || 8)
 };
 
 function sourcePriority(source) {
   const name = String(source || '').toLowerCase();
 
-  if (/فرمانداری|بخشداری|شهرداری|استانداری/.test(name)) return 100;
-  if (/ورزقان خبری|خاروانا|دیزمار|صدای ورزقان|آوای ورزقان/.test(name)) return 95;
+  if (/فرمانداری|بخشداری|شهرداری|استانداری|آموزش و پرورش|جهاد کشاورزی|راهداری|هلال احمر|آب و فاضلاب|آبفا|شرکت گاز|اداره گاز|اداره برق|شرکت برق|شبکه بهداشت|بهداشت و درمان|اورژانس|منابع طبیعی|محیط زیست|صمت|ورزش و جوانان/.test(name)) return 100;
+  if (/انعکاس ورزقان|انعکاس اخبار بخش خاروانا|ورزقان خبری|خاروانا|دیزمار|صدای ورزقان|آوای ورزقان|عصر ورزقان/.test(name)) return 96;
   if (/صدا و سیما|irib/.test(name)) return 92;
   if (/تسنیم|ایرنا|ایسنا|مهر/.test(name)) return 88;
   if (/گوگل|google news/.test(name)) return 75;
