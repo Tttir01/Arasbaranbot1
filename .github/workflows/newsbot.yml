@@ -170,6 +170,9 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHANNEL_ID: '@varzqannews'
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          REWRITE_MODEL: gpt-6-luna
+          REWRITE_TIMEOUT_MS: 20000
           TIMEZONE: Asia/Tehran
           MAX_ITEMS_PER_SOURCE: 10
           MAX_TOTAL_ITEMS: 30
