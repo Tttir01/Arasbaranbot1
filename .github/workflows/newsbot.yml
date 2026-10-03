@@ -205,6 +205,9 @@ jobs:
           console.log('Loading telegram...');
           require('./src/telegram');
 
+          console.log('Loading instagram...');
+          require('./src/instagram');
+
           console.log('ALL APPLICATION MODULES: OK');
           NODE
 
