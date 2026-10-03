@@ -3,7 +3,7 @@ name: Arasbaran News Bot
 on:
   workflow_dispatch:
   schedule:
-    - cron: '*/30 * * * *'
+    - cron: '*/15 * * * *'
 
 permissions:
   contents: write
@@ -214,6 +214,10 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHANNEL_ID: '@varzqannews'
+          INSTAGRAM_ENABLED: ${{ secrets.INSTAGRAM_ENABLED || 'false' }}
+          INSTAGRAM_USER_ID: ${{ secrets.INSTAGRAM_USER_ID }}
+          INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
+          META_GRAPH_VERSION: ${{ secrets.META_GRAPH_VERSION || 'v23.0' }}
           TIMEZONE: Asia/Tehran
           MAX_ITEMS_PER_SOURCE: 10
           MAX_TOTAL_ITEMS: 30
@@ -241,66 +245,53 @@ jobs:
 
           echo "================================"
 
-      - name: Verify Telegram destination and send permission
+      - name: Verify Instagram configuration
+        if: ${{ vars.INSTAGRAM_ENABLED == 'true' || secrets.INSTAGRAM_ENABLED == 'true' }}
         env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHANNEL_ID: '@varzqannews'
+          INSTAGRAM_ENABLED: ${{ secrets.INSTAGRAM_ENABLED }}
+          INSTAGRAM_USER_ID: ${{ secrets.INSTAGRAM_USER_ID }}
+          INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
+          META_GRAPH_VERSION: ${{ secrets.META_GRAPH_VERSION }}
         run: |
           echo "================================"
-          echo "TELEGRAM DESTINATION SEND TEST"
+          echo "INSTAGRAM CONFIGURATION CHECK"
           echo "================================"
+
+          if [ -z "$INSTAGRAM_USER_ID" ]; then
+            echo "ERROR: INSTAGRAM_USER_ID is missing"
+            exit 1
+          fi
+
+          if [ -z "$INSTAGRAM_ACCESS_TOKEN" ]; then
+            echo "ERROR: INSTAGRAM_ACCESS_TOKEN is missing"
+            exit 1
+          fi
+
           node - <<'NODE'
-          const { getMe, sendMessage, getChat, getChatAdministrators } = require('./src/telegram');
-          const chatId = process.env.TELEGRAM_CHANNEL_ID;
-          (async () => {
-            try {
-              const bot = await getMe();
-              console.log('BOT USERNAME:', '@' + (bot.username || 'unknown'));
-              const chat = await getChat(chatId);
-              console.log('TARGET CHAT ID:', chat.id);
-              console.log('TARGET CHAT TYPE:', chat.type);
-              console.log('TARGET CHAT TITLE:', chat.title || '(no title)');
-              console.log('TARGET CHAT USERNAME:', chat.username ? '@' + chat.username : '(private/no username)');
-              if (chat.type !== 'channel') {
-                throw new Error('مقصد Telegram کانال نیست؛ نوع مقصد: ' + chat.type);
-              }
-              if ((chat.username || '').toLowerCase() !== 'varzqannews') {
-                throw new Error('مقصد Telegram اشتباه است؛ کانال موردنظر باید @varzqannews باشد.');
-              }
-              console.log('BOT ID:', bot.id);
-              console.log('Checking channel administrators...');
-              try {
-                const admins = await getChatAdministrators(chatId);
-                const botAdmin = admins.find(a => a.user && a.user.id === bot.id);
-                console.log('ADMIN COUNT:', admins.length);
-                if (botAdmin) {
-                  console.log('BOT ADMIN STATUS:', botAdmin.status);
-                  console.log('BOT CAN POST:', botAdmin.can_post_messages === true ? 'YES' : 'NO/UNSPECIFIED');
-                } else {
-                  console.log('BOT ADMIN STATUS: NOT FOUND IN ADMINISTRATORS');
-                }
-              } catch (adminError) {
-                console.log('ADMINISTRATOR CHECK FAILED:', adminError.message);
-              }
-              const marker = '🧪 تست اتصال ربات ورزقان مدیا';
-              console.log('Sending temporary test message...');
-              const sent = await sendMessage(marker);
-              console.log('TELEGRAM SEND: OK');
-              console.log('TEST MESSAGE ID:', sent.message_id);
-              console.log('DESTINATION VERIFIED: CHANNEL');
-              console.log('NOTE: test message will be removed only if deleteMessage is available.');
-            } catch (error) {
-              console.error('TELEGRAM DESTINATION SEND: FAILED');
+          const { verifyInstagram } = require('./src/instagram');
+          verifyInstagram()
+            .then(info => {
+              console.log('Instagram connection: OK');
+              console.log('Instagram ID:', info.id);
+              console.log('Instagram username:', info.username || 'unknown');
+            })
+            .catch(error => {
+              console.error('Instagram connection FAILED');
               console.error(error.message);
               process.exit(1);
-            }
-          })();
+            });
           NODE
+
           echo "================================"
+
       - name: Run Arasbaran News Bot
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHANNEL_ID: '@varzqannews'
+          INSTAGRAM_ENABLED: ${{ secrets.INSTAGRAM_ENABLED || 'false' }}
+          INSTAGRAM_USER_ID: ${{ secrets.INSTAGRAM_USER_ID }}
+          INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
+          META_GRAPH_VERSION: ${{ secrets.META_GRAPH_VERSION || 'v23.0' }}
           TIMEZONE: Asia/Tehran
           MAX_ITEMS_PER_SOURCE: 10
           MAX_TOTAL_ITEMS: 30
