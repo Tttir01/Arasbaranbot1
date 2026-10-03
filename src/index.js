@@ -117,7 +117,7 @@ async function main() {
       continue;
     }
 
-    const message = formatNews(item, {
+    const message = await formatNews(item, {
       timezone: CONFIG.timezone,
       forPhoto: !!item.imageUrl
     });
