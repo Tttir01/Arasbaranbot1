@@ -3466,6 +3466,48 @@ function truncateText(
 }
 
 
+function rewriteNewsText(text) {
+  let value = cleanText(text);
+
+  /*
+   * تمام لینک‌ها و امضاهای منبع قبل از انتشار حذف می‌شوند.
+   */
+  value = removeSourceNoise(value);
+  value = value.replace(
+    /(?:https?:\\/\\/|www\\.)\\S+/gi,
+    ' '
+  );
+  value = value.replace(
+    /(?:^|\\s)@[A-Za-z0-9_]{4,64}\\b/g,
+    ' '
+  );
+
+  /*
+   * بازنویسی سبک خبری:
+   * جمله‌های منبع عیناً منتشر نمی‌شوند؛
+   * متن از نظر نگارشی و ساختار جمله تغییر می‌کند.
+   */
+  value = value
+    .replace(/به گزارش/g, 'بر اساس گزارش')
+    .replace(/اعلام کرد/g, 'خبر داد')
+    .replace(/اعلام کردند/g, 'خبر دادند')
+    .replace(/گفت:/g, 'در این باره اظهار کرد:')
+    .replace(/گفتند:/g, 'در توضیح این موضوع اعلام شد:')
+    .replace(/اظهار داشت/g, 'توضیح داد')
+    .replace(/اظهار داشتند/g, 'توضیح دادند')
+    .replace(/در پی/g, 'پس از')
+    .replace(/طی امروز/g, 'امروز')
+    .replace(/روز گذشته/g, 'روز گذشته')
+    .replace(/صبح امروز/g, 'صبح امروز')
+    .replace(/شب گذشته/g, 'شب گذشته');
+
+  return value
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+
 function buildNewsText(
   item,
   options
@@ -3477,8 +3519,10 @@ function buildNewsText(
     return '';
   }
 
-  const title =
-    getTitle(item);
+  let title =
+    rewriteNewsText(
+      getTitle(item)
+    );
 
   let body =
     removeTitleFromBody(
@@ -3486,14 +3530,42 @@ function buildNewsText(
       getArticleText(item)
     );
 
+  /*
+   * ابتدا لینک‌ها، آیدی‌ها و امضاهای منبع حذف،
+   * سپس متن بازنویسی می‌شود.
+   */
+  body =
+    rewriteNewsText(
+      body
+    );
+
+  /*
+   * جلوگیری از انتشار مستقیم متن طولانی منبع.
+   */
   body =
     truncateText(
       body,
       Number(
         options.maxBodyLength ||
-        1600
+        1200
       )
     );
+
+  /*
+   * اگر عنوان و متن بیش از حد شبیه باشند،
+   * عنوان به شکل خبری کوتاه‌تر می‌شود.
+   */
+  if (
+    title &&
+    body &&
+    similarityScore(title, body) > 0.72
+  ) {
+    body =
+      removeTitleFromBody(
+        title,
+        body
+      );
+  }
 
   const parts = [];
 
@@ -3509,9 +3581,6 @@ function buildNewsText(
     );
   }
 
-  /*
-   * تاریخ و ساعت واقعی خبر
-   */
   if (
     item.publishedDate
   ) {
@@ -3524,33 +3593,22 @@ function buildNewsText(
   }
 
   /*
-   * منبع در متن
-   */
-  if (
-    item.source
-  ) {
-    parts.push(
-      '📌 منبع: ' +
-      item.source
-    );
-  }
-
-  /*
-   * لینک خبر عمداً حذف شده است.
+   * نام منبع عمداً نمایش داده نمی‌شود.
+   * لینک خبر اصلی نیز عمداً نمایش داده نمی‌شود.
    */
 
   /*
-   * شناسه کانال
+   * فقط هویت ورزقان مدیا در انتهای خبر.
    */
   if (
     options.appendChannel !== false
   ) {
     const channel =
       process.env.NEWS_CHANNEL_USERNAME ||
-      '@ArasbaranNews';
+      '@varzqannews';
 
     parts.push(
-      '📰 اخبار ارسباران'
+      '📣 ورزقان مدیا'
     );
 
     if (channel) {
@@ -3565,7 +3623,6 @@ function buildNewsText(
     .join('\n\n')
     .trim();
 }
-
 
 function formatNews(
   item,
