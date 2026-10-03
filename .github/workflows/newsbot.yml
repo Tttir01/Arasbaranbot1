@@ -246,7 +246,6 @@ jobs:
           echo "================================"
 
       - name: Verify Instagram configuration
-        if: ${{ vars.INSTAGRAM_ENABLED == 'true' || secrets.INSTAGRAM_ENABLED == 'true' }}
         env:
           INSTAGRAM_ENABLED: ${{ secrets.INSTAGRAM_ENABLED }}
           INSTAGRAM_USER_ID: ${{ secrets.INSTAGRAM_USER_ID }}
@@ -256,6 +255,11 @@ jobs:
           echo "================================"
           echo "INSTAGRAM CONFIGURATION CHECK"
           echo "================================"
+
+          if [ "$INSTAGRAM_ENABLED" != "true" ]; then
+            echo "Instagram publishing is disabled (INSTAGRAM_ENABLED != true)."
+            exit 0
+          fi
 
           if [ -z "$INSTAGRAM_USER_ID" ]; then
             echo "ERROR: INSTAGRAM_USER_ID is missing"
