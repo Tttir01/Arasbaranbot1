@@ -1848,15 +1848,60 @@ async function fetchTelegramSource(
           }
         }
 
+        /*
+         * فقط تصویر خود پست را استخراج کن.
+         * از img عمومی صفحه استفاده نمی‌کنیم، چون ممکن است
+         * آواتار/تصویر کانال را برگرداند.
+         */
         if (!imageUrl) {
-          const img =
-            message.find(
-              'img'
-            ).first();
+          const mediaSelectors = [
+            '.tgme_widget_message_photo_wrap',
+            '.tgme_widget_message_photo',
+            '.tgme_widget_message_video',
+            '.tgme_widget_message_document'
+          ];
 
-          if (img.length) {
+          for (const selector of mediaSelectors) {
+            const media = message.find(selector).first();
+
+            if (!media.length) continue;
+
+            const style = media.attr('style') || '';
+            const styleMatch = style.match(
+              /url\(['"]?([^'")]+)['"]?\)/i
+            );
+
+            if (styleMatch && styleMatch[1]) {
+              imageUrl = styleMatch[1];
+              break;
+            }
+
+            const mediaImage = media.find('img').first();
+
+            if (mediaImage.length) {
+              imageUrl =
+                mediaImage.attr('src') ||
+                mediaImage.attr('data-src') ||
+                mediaImage.attr('data-lazy-src') ||
+                '';
+
+              if (imageUrl) break;
+            }
+          }
+        }
+
+        /*
+         * برای ویدئو فقط thumbnail خود ویدئو را قبول کن.
+         */
+        if (!imageUrl) {
+          const video = message.find(
+            '.tgme_widget_message_video'
+          ).first();
+
+          if (video.length) {
             imageUrl =
-              img.attr('src') ||
+              video.attr('data-thumb') ||
+              video.attr('data-thumbnail') ||
               '';
           }
         }
