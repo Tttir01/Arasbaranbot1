@@ -240,6 +240,205 @@
         "خاروانا"
       ],
       "enabled": true
+    },
+    {
+      "id": "telegram-enekas-varzqan",
+      "name": "انعکاس ورزقان",
+      "type": "telegram",
+      "url": "https://t.me/s/enekasvarzeghan",
+      "keywords": [
+        "ورزقان",
+        "خاروانا",
+        "سونگون",
+        "دیزمار"
+      ],
+      "areas": [
+        "ورزقان",
+        "خاروانا"
+      ],
+      "enabled": true
+    },
+    {
+      "id": "telegram-sedaye-varzqan",
+      "name": "صدای ورزقان، خاروانا",
+      "type": "telegram",
+      "url": "https://t.me/s/sedayeVarzgan",
+      "keywords": [
+        "ورزقان",
+        "خاروانا",
+        "دیزمار",
+        "سونگون"
+      ],
+      "areas": [
+        "ورزقان",
+        "خاروانا"
+      ],
+      "enabled": true
+    },
+    {
+      "id": "google-farmandari-varzqan",
+      "name": "Google News - فرمانداری ورزقان",
+      "type": "rss",
+      "url": "https://news.google.com/rss/search?q=site%3Avarzgan.ostan-as.ir%20%D9%81%D8%B1%D9%85%D8%A7%D9%86%D8%AF%D8%A7%D8%B1%DB%8C%20%D9%88%D8%B1%D8%B2%D9%82%D8%A7%D9%86%20OR%20site%3Aostan-as.ir%20%D9%88%D8%B1%D8%B2%D9%82%D8%A7%D9%86%20%D9%81%D8%B1%D9%85%D8%A7%D9%86%D8%AF%D8%A7%D8%B1%DB%8C&hl=fa&gl=IR&ceid=IR%3Afa",
+      "keywords": [
+        "ورزقان",
+        "خاروانا"
+      ],
+      "areas": [
+        "ورزقان",
+        "خاروانا"
+      ],
+      "enabled": true
+    },
+    {
+      "id": "google-amoozesh-varzqan",
+      "name": "Google News - آموزش و پرورش ورزقان و خاروانا",
+      "type": "rss",
+      "url": "https://news.google.com/rss/search?q=site%3Amedu.gov.ir%20%D9%88%D8%B1%D8%B2%D9%82%D8%A7%D9%86%20%D8%AE%D8%A7%D8%B1%D9%88%D8%A7%D9%86%D8%A7%20%D8%A2%D9%85%D9%88%D8%B2%D8%B4%20%D9%88%20%D9%BE%D8%B1%D9%88%D8%B1%D8%B4&hl=fa&gl=IR&ceid=IR%3Afa",
+      "keywords": [
+        "ورزقان",
+        "خاروانا"
+      ],
+      "areas": [
+        "ورزقان",
+        "خاروانا"
+      ],
+      "enabled": true
+    },
+    {
+      "id": "google-jahad-varzqan",
+      "name": "Google News - جهاد کشاورزی ورزقان",
+      "type": "rss",
+      "url": "https://news.google.com/rss/search?q=site%3Aagri-jahad.ir%20%D9%88%D8%B1%D8%B2%D9%82%D8%A7%D9%86%20%D8%AC%D9%87%D8%A7%D8%AF%20%DA%A9%D8%B4%D8%A7%D9%88%D8%B1%D8%B2%DB%8C%20OR%20site%3Aiana.ir%20%D9%88%D8%B1%D8%B2%D9%82%D8%A7%D9%86%20%D8%AC%D9%87%D8%A7%D8%AF%20%DA%A9%D8%B4%D8%A7%D9%88%D8%B1%D8%B2%DB%8C&hl=fa&gl=IR&ceid=IR%3Afa",
+      "keywords": [
+        "ورزقان",
+        "خاروانا"
+      ],
+      "areas": [
+        "ورزقان",
+        "خاروانا"
+      ],
+      "enabled": true
+    },
+    {
+      "id": "google-rahhdari-varzqan",
+      "name": "Google News - راهداری ورزقان و خاروانا",
+      "type": "rss",
+      "url": "https://news.google.com/rss/search?q=%D9%88%D8%B1%D8%B2%D9%82%D8%A7%D9%86%20%D8%AE%D8%A7%D8%B1%D9%88%D8%A7%D9%86%D8%A7%20%D8%B1%D8%A7%D9%87%D8%AF%D8%A7%D8%B1%DB%8C%20%D8%AD%D9%85%D9%84%20%D9%88%20%D9%86%D9%82%D9%84%20%D8%AC%D8%A7%D8%AF%D9%87%20%D8%A7%DB%8C&hl=fa&gl=IR&ceid=IR%3Afa",
+      "keywords": [
+        "ورزقان",
+        "خاروانا"
+      ],
+      "areas": [
+        "ورزقان",
+        "خاروانا"
+      ],
+      "enabled": true
+    },
+    {
+      "id": "google-gas-varzqan",
+      "name": "Google News - گاز ورزقان",
+      "type": "rss",
+      "url": "https://news.google.com/rss/search?q=%D9%88%D8%B1%D8%B2%D9%82%D8%A7%D9%86%20%D8%A7%D8%AF%D8%A7%D8%B1%D9%87%20%DA%AF%D8%A7%D8%B2%20OR%20%D9%88%D8%B1%D8%B2%D9%82%D8%A7%D9%86%20%D8%B4%D8%B1%DA%A9%D8%AA%20%DA%AF%D8%A7%D8%B2&hl=fa&gl=IR&ceid=IR%3Afa",
+      "keywords": [
+        "ورزقان",
+        "خاروانا"
+      ],
+      "areas": [
+        "ورزقان",
+        "خاروانا"
+      ],
+      "enabled": true
+    },
+    {
+      "id": "google-electricity-varzqan",
+      "name": "Google News - برق ورزقان و خاروانا",
+      "type": "rss",
+      "url": "https://news.google.com/rss/search?q=%D9%88%D8%B1%D8%B2%D9%82%D8%A7%D9%86%20%D8%AE%D8%A7%D8%B1%D9%88%D8%A7%D9%86%D8%A7%20%D8%A7%D8%AF%D8%A7%D8%B1%D9%87%20%D8%A8%D8%B1%D9%82%20OR%20%D8%B4%D8%B1%DA%A9%D8%AA%20%D8%AA%D9%88%D8%B2%DB%8C%D8%B9%20%D9%86%DB%8C%D8%B1%D9%88%DB%8C%20%D8%A8%D8%B1%D9%82&hl=fa&gl=IR&ceid=IR%3Afa",
+      "keywords": [
+        "ورزقان",
+        "خاروانا"
+      ],
+      "areas": [
+        "ورزقان",
+        "خاروانا"
+      ],
+      "enabled": true
+    },
+    {
+      "id": "google-abfa-varzqan",
+      "name": "Google News - آب و فاضلاب ورزقان و خاروانا",
+      "type": "rss",
+      "url": "https://news.google.com/rss/search?q=%D9%88%D8%B1%D8%B2%D9%82%D8%A7%D9%86%20%D8%AE%D8%A7%D8%B1%D9%88%D8%A7%D9%86%D8%A7%20%D8%A2%D8%A8%D9%81%D8%A7%20OR%20%D8%A2%D8%A8%20%D9%88%20%D9%81%D8%A7%D8%B6%D9%84%D8%A7%D8%A8&hl=fa&gl=IR&ceid=IR%3Afa",
+      "keywords": [
+        "ورزقان",
+        "خاروانا"
+      ],
+      "areas": [
+        "ورزقان",
+        "خاروانا"
+      ],
+      "enabled": true
+    },
+    {
+      "id": "google-redcrescent-varzqan",
+      "name": "Google News - هلال احمر ورزقان",
+      "type": "rss",
+      "url": "https://news.google.com/rss/search?q=%D9%88%D8%B1%D8%B2%D9%82%D8%A7%D9%86%20%D9%87%D9%84%D8%A7%D9%84%20%D8%A7%D8%AD%D9%85%D8%B1%20OR%20%D8%AC%D9%85%D8%B9%DB%8C%D8%AA%20%D9%87%D9%84%D8%A7%D9%84%20%D8%A7%D8%AD%D9%85%D8%B1&hl=fa&gl=IR&ceid=IR%3Afa",
+      "keywords": [
+        "ورزقان",
+        "خاروانا"
+      ],
+      "areas": [
+        "ورزقان",
+        "خاروانا"
+      ],
+      "enabled": true
+    },
+    {
+      "id": "google-health-varzqan",
+      "name": "Google News - بهداشت و درمان ورزقان",
+      "type": "rss",
+      "url": "https://news.google.com/rss/search?q=%D9%88%D8%B1%D8%B2%D9%82%D8%A7%D9%86%20%D8%B4%D8%A8%DA%A9%D9%87%20%D8%A8%D9%87%D8%AF%D8%A7%D8%B4%D8%AA%20%D9%88%20%D8%AF%D8%B1%D9%85%D8%A7%D9%86%20OR%20%D8%A8%DB%8C%D9%85%D8%A7%D8%B1%D8%B3%D8%AA%D8%A7%D9%86&hl=fa&gl=IR&ceid=IR%3Afa",
+      "keywords": [
+        "ورزقان",
+        "خاروانا"
+      ],
+      "areas": [
+        "ورزقان",
+        "خاروانا"
+      ],
+      "enabled": true
+    },
+    {
+      "id": "google-municipality-kharvana",
+      "name": "Google News - شهرداری خاروانا",
+      "type": "rss",
+      "url": "https://news.google.com/rss/search?q=%D8%AE%D8%A7%D8%B1%D9%88%D8%A7%D9%86%D8%A7%20%D8%B4%D9%87%D8%B1%D8%AF%D8%A7%D8%B1%DB%8C%20OR%20%D8%B4%D9%88%D8%B1%D8%A7%DB%8C%20%D8%B4%D9%87%D8%B1%20%D8%AE%D8%A7%D8%B1%D9%88%D8%A7%D9%86%D8%A7&hl=fa&gl=IR&ceid=IR%3Afa",
+      "keywords": [
+        "ورزقان",
+        "خاروانا"
+      ],
+      "areas": [
+        "ورزقان",
+        "خاروانا"
+      ],
+      "enabled": true
+    },
+    {
+      "id": "google-standard-varzqan",
+      "name": "Google News - استانداری آذربایجان شرقی ورزقان و خاروانا",
+      "type": "rss",
+      "url": "https://news.google.com/rss/search?q=site%3Aostan-as.ir%20%D9%88%D8%B1%D8%B2%D9%82%D8%A7%D9%86%20%D8%AE%D8%A7%D8%B1%D9%88%D8%A7%D9%86%D8%A7&hl=fa&gl=IR&ceid=IR%3Afa",
+      "keywords": [
+        "ورزقان",
+        "خاروانا"
+      ],
+      "areas": [
+        "ورزقان",
+        "خاروانا"
+      ],
+      "enabled": true
     }
   ]
 }
