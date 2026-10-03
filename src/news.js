@@ -3524,7 +3524,7 @@ function generateNewHeadline(originalTitle, body) {
     return place ? `تازه‌ترین خبر از بخش کشاورزی ${place}` : 'تازه‌ترین خبر از بخش کشاورزی';
   }
   if (/برق|گاز|آب و فاضلاب|آبفا/.test(text)) {
-    return place ? `وضعیت خدمات زیرساختی در ${place به‌صورت تازه اعلام شد` : 'وضعیت خدمات زیرساختی اعلام شد';
+    return place ? `وضعیت خدمات زیرساختی در ${place} به‌صورت تازه اعلام شد` : 'وضعیت خدمات زیرساختی اعلام شد';
   }
   if (subject && place) {
     return `آخرین خبر درباره ${subject} در ${place}`;
