@@ -1,6 +1,8 @@
 'use strict';
 
 const CHANNEL_ID = '@varzqannews';
+const REWRITE_MODEL = process.env.REWRITE_MODEL || 'gpt-6-luna';
+const REWRITE_TIMEOUT_MS = Number(process.env.REWRITE_TIMEOUT_MS || 20000);
 
 function toPersianDigits(value) {
   return String(value)
@@ -138,7 +140,109 @@ function makeSummary(
   return `${cut}…`;
 }
 
-function formatNews(
+function normalizeForSimilarity(text) {
+  return cleanText(text)
+    .replace(/[\u200c\u200f\u200e]/g, '')
+    .replace(/[^\u0600-\u06FF\u0030-\u0039a-zA-Z ]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
+function similarityRatio(a, b) {
+  const aa = normalizeForSimilarity(a);
+  const bb = normalizeForSimilarity(b);
+  if (!aa || !bb) return 0;
+  const aWords = new Set(aa.split(' ').filter(w => w.length > 2));
+  const bWords = new Set(bb.split(' ').filter(w => w.length > 2));
+  if (!aWords.size || !bWords.size) return 0;
+  let common = 0;
+  for (const word of aWords) {
+    if (bWords.has(word)) common++;
+  }
+  return common / Math.max(aWords.size, bWords.size);
+}
+
+async function rewriteWithAI(title, body) {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) return null;
+
+  const input = [
+    'عنوان منبع:', title || '', '',
+    'متن منبع:', body || ''
+  ].join('\n');
+
+  const instructions = [
+    'تو ویراستار ارشد یک رسانه محلی فارسی هستی.',
+    'خبر زیر را از صفر و با ساختار کاملاً جدید بازنویسی کن.',
+    'خروجی نباید بازنویسی کلمه‌به‌کلمه یا نزدیک به متن منبع باشد.',
+    'تیتر را نیز کاملاً جدید، کوتاه و خبری بنویس.',
+    'فقط واقعیت‌ها، اعداد، نام مکان‌ها، اشخاص، زمان‌ها و نتیجه رویداد را حفظ کن.',
+    'جملات، ترتیب اطلاعات و زاویه روایت را تغییر بده.',
+    'از حدس، اطلاعات تازه، نظر شخصی یا ادعای تأییدنشده خودداری کن.',
+    'نام رسانه، عبارت منبع، URL، لینک، @username، تبلیغ و هشتگ را حذف کن.',
+    'خروجی دقیقاً با این قالب باشد:',
+    'TITLE: تیتر جدید',
+    'BODY: متن بازنویسی‌شده در یک یا دو پاراگراف کوتاه',
+    'فارسی روان، طبیعی و مناسب انتشار در کانال خبری بنویس.'
+  ].join('\n');
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REWRITE_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(
+      'https://api.openai.com/v1/responses',
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer ' + apiKey,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: REWRITE_MODEL,
+          instructions,
+          input,
+          max_output_tokens: 500
+        }),
+        signal: controller.signal
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error('OpenAI HTTP ' + response.status + ': ' + errorText.slice(0, 300));
+    }
+
+    const data = await response.json();
+    const output = data.output_text || (Array.isArray(data.output)
+      ? data.output.flatMap(item => item.content || [])
+          .filter(part => part.type === 'output_text')
+          .map(part => part.text).join('\n')
+      : '');
+
+    if (!output) throw new Error('OpenAI returned empty rewrite');
+
+    const titleMatch = output.match(/TITLE:\s*(.+)/i);
+    const bodyMatch = output.match(/BODY:\s*([\s\S]+)/i);
+    const newTitle = cleanText(titleMatch ? titleMatch[1] : title);
+    const newBody = cleanText(bodyMatch ? bodyMatch[1] : output);
+    if (!newTitle || !newBody) return null;
+
+    const original = (title || '') + ' ' + (body || '');
+    const rewritten = newTitle + ' ' + newBody;
+    if (similarityRatio(original, rewritten) > 0.68) {
+      console.log('⚠️ بازنویسی AI بیش از حد شبیه منبع بود؛ نسخه محلی استفاده می‌شود.');
+      return null;
+    }
+
+    return { title: newTitle, body: newBody };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function formatNews(
   item,
   options = {}
 ) {
@@ -154,11 +258,23 @@ function formatNews(
     cleanTitle(item.title) ||
     'خبر جدید';
 
-  const description =
+  let description =
     makeSummary(
       item.description,
       forPhoto ? 560 : 1000
     );
+
+  let finalTitle = title;
+
+  try {
+    const rewritten = await rewriteWithAI(title, description);
+    if (rewritten) {
+      finalTitle = rewritten.title;
+      description = rewritten.body;
+    }
+  } catch (error) {
+    console.log('⚠️ بازنویسی AI در دسترس نبود: ' + error.message);
+  }
 
   const source = '';
 
@@ -192,7 +308,7 @@ function formatNews(
     );
 
   const parts = [
-    `📰 ${title}`
+    `📰 ${finalTitle}`
   ];
 
   if (source) {
