@@ -3468,45 +3468,32 @@ function truncateText(
 
 function rewriteNewsText(text) {
   let value = cleanText(text);
+  value = removeSourceNoise(value)
+    .replace(/(?:https?:\/\/|www\.)\S+/gi, ' ')
+    .replace(/(?:^|\s)@[A-Za-z0-9_]{4,64}\b/g, ' ');
 
-  /*
-   * تمام لینک‌ها و امضاهای منبع قبل از انتشار حذف می‌شوند.
-   */
-  value = removeSourceNoise(value);
-  value = value.replace(
-    /(?:https?:\/\/|www\.)\S+/gi,
-    ' '
-  );
-  value = value.replace(
-    /(?:^|\s)@[A-Za-z0-9_]{4,64}\b/g,
-    ' '
-  );
+  // حفظ همه نکات اصلی، اما بازچینی و بازنویسی جمله‌ها برای جلوگیری از کپی مستقیم
+  const sentences = value
+    .split(/(?<=[.!؟؛])\s+|\n+/)
+    .map(s => s.trim())
+    .filter(Boolean);
 
-  /*
-   * بازنویسی سبک خبری:
-   * جمله‌های منبع عیناً منتشر نمی‌شوند؛
-   * متن از نظر نگارشی و ساختار جمله تغییر می‌کند.
-   */
-  value = value
-    .replace(/به گزارش/g, 'بر اساس گزارش')
-    .replace(/اعلام کرد/g, 'خبر داد')
+  value = sentences.map(s => s
+    .replace(/^به گزارش\s+/i, '')
+    .replace(/^بر اساس گزارش\s+/i, '')
     .replace(/اعلام کردند/g, 'خبر دادند')
-    .replace(/گفت:/g, 'در این باره اظهار کرد:')
-    .replace(/گفتند:/g, 'در توضیح این موضوع اعلام شد:')
-    .replace(/اظهار داشت/g, 'توضیح داد')
+    .replace(/اعلام کرد/g, 'خبر داد')
     .replace(/اظهار داشتند/g, 'توضیح دادند')
+    .replace(/اظهار داشت/g, 'توضیح داد')
     .replace(/در پی/g, 'پس از')
     .replace(/طی امروز/g, 'امروز')
-    .replace(/روز گذشته/g, 'روز گذشته')
-    .replace(/صبح امروز/g, 'صبح امروز')
-    .replace(/شب گذشته/g, 'شب گذشته');
+    .replace(/صبح امروز/g, 'امروز صبح')
+    .replace(/گفت:/g, 'در این باره گفت:')
+    .replace(/گفتند:/g, 'در این باره توضیح دادند:')
+  ).join(' ');
 
-  return value
-    .replace(/[ \t]+/g, ' ')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
+  return value.replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
 }
-
 
 function buildNewsText(
   item,
