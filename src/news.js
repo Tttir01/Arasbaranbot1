@@ -2852,7 +2852,7 @@ function isOfficialPublisher(item) {
 
   const allowed = configured
     .split(',')
-    .map(domain => domain.trim().toLowerCase().replace(/^\\.+|\\.+$/g, ''))
+    .map(domain => domain.trim().toLowerCase())
     .filter(Boolean);
 
   const candidates = [
@@ -2863,7 +2863,8 @@ function isOfficialPublisher(item) {
 
   for (const candidate of candidates) {
     try {
-      const host = new URL(candidate).hostname.toLowerCase().replace(/^www\\./, '');
+      let host = new URL(candidate).hostname.toLowerCase();
+      if (host.startsWith('www.')) host = host.slice(4);
       // Never trust the Google News redirect host as the publisher.
       if (host === 'news.google.com' || host.endsWith('.news.google.com')) continue;
       if (allowed.some(domain => host === domain || host.endsWith('.' + domain))) {
