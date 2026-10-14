@@ -109,15 +109,15 @@ function isSameNews(item, oldItem) {
   // فقط اگر تاریخ انتشار هم در یک بازه محدود باشد، مشابه محسوب می‌شود.
   const currentDate = current.publishedAt ? new Date(current.publishedAt).getTime() : 0;
   const oldDate = old.publishedAt ? new Date(old.publishedAt).getTime() : 0;
-  const closeInTime = currentDate > 0 && oldDate > 0 && Math.abs(currentDate - oldDate) <= 48 * 60 * 60 * 1000;
+  const closeInTime = currentDate > 0 && oldDate > 0 && Math.abs(currentDate - oldDate) <= 72 * 60 * 60 * 1000;
 
-  if (closeInTime && current.title && old.title && similarity(current.title, old.title) >= 0.90) {
-    return true;
-  }
+  // عنوان‌های تقریباً یکسان بین رسانه‌های مختلف را در بازه 72 ساعت حذف کن.
+  const titleSimilarity = similarity(current.title, old.title);
+  const contentSimilarity = similarity(current.content, old.content);
 
-  if (closeInTime && current.content && old.content && similarity(current.content, old.content) >= 0.92) {
-    return true;
-  }
+  if (closeInTime && current.title && old.title && titleSimilarity >= 0.72) return true;
+  if (closeInTime && titleSimilarity >= 0.58 && contentSimilarity >= 0.52) return true;
+  if (closeInTime && current.content && old.content && contentSimilarity >= 0.78) return true;
 
   return false;
 }
