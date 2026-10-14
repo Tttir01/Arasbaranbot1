@@ -1950,10 +1950,16 @@ async function fetchTelegramSource(
             imageUrl,
 
           source:
-            source.name,
+            firstNonEmpty(
+              entry.source && entry.source.title,
+              source.name
+            ),
 
           sourceUrl:
-            source.url
+            firstNonEmpty(
+              entry.source && entry.source.url,
+              source.url
+            )
         });
       }
     );
