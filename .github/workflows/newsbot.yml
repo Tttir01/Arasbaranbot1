@@ -3,7 +3,7 @@ name: Arasbaran News Bot
 on:
   workflow_dispatch:
   schedule:
-    - cron: '*/15 * * * *'
+    - cron: '*/30 * * * *'
 
 permissions:
   contents: write
@@ -176,8 +176,9 @@ jobs:
           TIMEZONE: Asia/Tehran
           MAX_ITEMS_PER_SOURCE: 10
           MAX_TOTAL_ITEMS: 30
-          MAX_POSTS_PER_RUN: 8
+          MAX_POSTS_PER_RUN: 3
           NEWS_MAX_AGE_HOURS: 24
+          REQUIRE_NEWS_DATE: 'true'
           MAX_HISTORY_ITEMS: 5000
           REQUEST_TIMEOUT: 25000
           DATA_FILE: data/news-history.json
@@ -304,6 +305,8 @@ jobs:
           MAX_TOTAL_ITEMS: 30
           REQUEST_TIMEOUT: 25000
           NEWS_MAX_AGE_HOURS: 24
+          REQUIRE_NEWS_DATE: 'true'
+          MAX_POSTS_PER_RUN: 3
           DATA_FILE: data/news-history.json
         run: |
           echo "================================"
