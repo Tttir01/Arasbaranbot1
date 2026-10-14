@@ -2996,68 +2996,40 @@ function similarityScore(
 }
 
 
-function isDuplicateNews(
-  item,
-  accepted
-) {
-  if (
-    !item ||
-    !Array.isArray(accepted)
-  ) {
-    return false;
-  }
+function isDuplicateNews(item, accepted) {
+  if (!item || !Array.isArray(accepted)) return false;
 
-  const hash =
-    item.hash ||
-    createNewsHash(item);
+  const hash = item.hash || createNewsHash(item);
+  const itemUrl = String(item.url || item.link || '').replace(/[?#].*$/, '').replace(/\/$/, '').toLowerCase();
+  const itemDate = item.publishedDate ? new Date(item.publishedDate).getTime()
+    : item.publishedAt ? new Date(item.publishedAt).getTime() : 0;
 
-  for (
-    let i = 0;
-    i < accepted.length;
-    i++
-  ) {
-    const old =
-      accepted[i];
+  for (const old of accepted) {
+    if (!old) continue;
 
-    if (!old) {
-      continue;
-    }
+    const oldHash = old.hash || createNewsHash(old);
+    const oldUrl = String(old.url || old.link || '').replace(/[?#].*$/, '').replace(/\/$/, '').toLowerCase();
+    const oldDate = old.publishedDate ? new Date(old.publishedDate).getTime()
+      : old.publishedAt ? new Date(old.publishedAt).getTime() : 0;
 
-    const oldHash =
-      old.hash ||
-      createNewsHash(old);
+    if (hash && oldHash && hash === oldHash) return true;
+    if (itemUrl && oldUrl && itemUrl === oldUrl) return true;
 
-    if (
-      hash &&
-      oldHash &&
-      hash === oldHash
-    ) {
-      return true;
-    }
+    // مقایسه معنایی تقریبی فقط برای خبرهای منتشرشده در فاصله 72 ساعت
+    const withinWindow = !itemDate || !oldDate ||
+      Math.abs(itemDate - oldDate) <= 72 * 60 * 60 * 1000;
+    if (!withinWindow) continue;
 
-    /*
-     * عنوان تقریباً یکسان
-     */
-    if (
-      similarityScore(
-        item.title,
-        old.title
-      ) >= 0.84
-    ) {
-      return true;
-    }
+    const titleSimilarity = similarityScore(item.title, old.title);
+    const contentSimilarity = similarityScore(
+      item.content || item.description || item.title,
+      old.content || old.description || old.title
+    );
 
-    /*
-     * متن تقریباً یکسان
-     */
-    if (
-      similarityScore(
-        item.content,
-        old.content
-      ) >= 0.92
-    ) {
-      return true;
-    }
+    // تیترهای بازنشرشده با تفاوت جزئی را زودتر حذف کن
+    if (titleSimilarity >= 0.72) return true;
+    if (titleSimilarity >= 0.60 && contentSimilarity >= 0.55) return true;
+    if (contentSimilarity >= 0.78) return true;
   }
 
   return false;
