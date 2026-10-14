@@ -327,6 +327,7 @@ function removeSourceNoise(text) {
 const LOCAL_AREAS = {
   varzqan: [
     'ورزقان',
+    'ورزگان',
     'شهرستان ورزقان',
     'بخش مرکزی ورزقان',
     'خاروانا',
