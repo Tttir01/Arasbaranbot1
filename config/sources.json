@@ -4,27 +4,36 @@
       "id": "google-farmandari-varzqan",
       "name": "وب‌سایت‌های رسمی فرمانداری و استانداری",
       "type": "rss",
-      "url": "https://news.google.com/rss/search?q=site%3Avarzgan.ostan-as.ir%20%D9%81%D8%B1%D9%85%D8%A7%D9%86%D8%AF%D8%A7%D8%B1%DB%8C%20%D9%88%D8%B1%D8%B2%D9%82%D8%A7%D9%86%20OR%20site%3Aostan-as.ir%20%D9%88%D8%B1%D8%B2%D9%82%D8%A7%D9%86%20%D9%81%D8%B1%D9%85%D8%A7%D9%86%D8%AF%D8%A7%D8%B1%DB%8C&hl=fa&gl=IR&ceid=IR%3Afa",
-      "keywords": ["ورزقان", "خاروانا", "سونگون"],
+      "url": "https://news.google.com/rss/search?q=%28%22%D9%88%D8%B1%D8%B2%D9%82%D8%A7%D9%86%22%20OR%20%22%D9%88%D8%B1%D8%B2%DA%AF%D8%A7%D9%86%22%29%20%28site%3Aostan-as.ir%20OR%20site%3Avarzgan.ostan-as.ir%29&hl=fa&gl=IR&ceid=IR%3Afa",
+      "keywords": ["ورزقان", "ورزگان", "خاروانا", "سونگون"],
       "areas": ["ورزقان", "خاروانا"],
+      "enabled": true
+    },
+    {
+      "id": "google-kharvana-official",
+      "name": "جست‌وجوی رسمی خاروانا و دیزمار",
+      "type": "rss",
+      "url": "https://news.google.com/rss/search?q=%28%22%D8%AE%D8%A7%D8%B1%D9%88%D8%A7%D9%86%D8%A7%22%20OR%20%22%D8%AF%DB%8C%D8%B2%D9%85%D8%A7%D8%B1%22%29%20%28site%3Aostan-as.ir%20OR%20site%3Avarzgan.ostan-as.ir%20OR%20site%3Amedu.gov.ir%29&hl=fa&gl=IR&ceid=IR%3Afa",
+      "keywords": ["خاروانا", "دیزمار", "ورزقان"],
+      "areas": ["خاروانا", "ورزقان"],
       "enabled": true
     },
     {
       "id": "google-amoozesh-varzqan",
       "name": "وب‌سایت رسمی آموزش و پرورش",
       "type": "rss",
-      "url": "https://news.google.com/rss/search?q=site%3Amedu.gov.ir%20%D9%88%D8%B1%D8%B2%D9%82%D8%A7%D9%86%20%D8%AE%D8%A7%D8%B1%D9%88%D8%A7%D9%86%D8%A7%20%D8%A2%D9%85%D9%88%D8%B2%D8%B4%20%D9%88%20%D9%BE%D8%B1%D9%88%D8%B1%D8%B4&hl=fa&gl=IR&ceid=IR%3Afa",
-      "keywords": ["ورزقان", "خاروانا", "سونگون"],
+      "url": "https://news.google.com/rss/search?q=%28%22%D9%88%D8%B1%D8%B2%D9%82%D8%A7%D9%86%22%20OR%20%22%D9%88%D8%B1%D8%B2%DA%AF%D8%A7%D9%86%22%20OR%20%22%D8%AE%D8%A7%D8%B1%D9%88%D8%A7%D9%86%D8%A7%22%29%20site%3Amedu.gov.ir&hl=fa&gl=IR&ceid=IR%3Afa",
+      "keywords": ["ورزقان", "ورزگان", "خاروانا"],
       "areas": ["ورزقان", "خاروانا"],
       "enabled": true
     },
     {
-      "id": "google-standard-varzqan",
-      "name": "وب‌سایت رسمی استانداری آذربایجان شرقی",
+      "id": "google-songun-official",
+      "name": "خبرهای رسمی مرتبط با مجتمع مس سونگون",
       "type": "rss",
-      "url": "https://news.google.com/rss/search?q=site%3Aostan-as.ir%20%D9%88%D8%B1%D8%B2%D9%82%D8%A7%D9%86%20%D8%AE%D8%A7%D8%B1%D9%88%D8%A7%D9%86%D8%A7&hl=fa&gl=IR&ceid=IR%3Afa",
-      "keywords": ["ورزقان", "خاروانا", "سونگون"],
-      "areas": ["ورزقان", "خاروانا"],
+      "url": "https://news.google.com/rss/search?q=%28%22%D9%85%D8%B3%20%D8%B3%D9%88%D9%86%DA%AF%D9%88%D9%86%22%20OR%20%22%D8%B3%D9%88%D9%86%DA%AF%D9%88%D9%86%22%29%20%28site%3Aostan-as.ir%20OR%20site%3Avarzgan.ostan-as.ir%29&hl=fa&gl=IR&ceid=IR%3Afa",
+      "keywords": ["سونگون", "مس سونگون", "ورزقان"],
+      "areas": ["ورزقان"],
       "enabled": true
     }
   ]
