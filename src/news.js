@@ -2885,10 +2885,19 @@ function isOfficialPublisher(item) {
   // Some Google News RSS responses omit the <source url="..."> field.
   // Accept the publisher label fallback only for feeds explicitly scoped
   // to an allowlisted domain; the redirect URL alone is never sufficient.
-  const publisher = String(item && item.publisherName || '').toLowerCase();
+  // RSS parser may omit <source> metadata; in that case use the item title
+  // only as a label, and only when the configured feed itself is scoped to an official domain.
+  const publisher = [
+    item && item.publisherName,
+    item && item.title
+  ].filter(Boolean).join(' ').toLowerCase();
   const feedUrl = String(item && item.sourceUrl || '');
   let decodedFeed = feedUrl;
-  try { decodedFeed = decodeURIComponent(feedUrl); } catch (_) {}
+  try {
+    decodedFeed = decodeURIComponent(decodeURIComponent(feedUrl));
+  } catch (_) {
+    try { decodedFeed = decodeURIComponent(feedUrl); } catch (_) {}
+  }
   const normalizedFeed = decodedFeed.toLowerCase().replace(/\s+/g, '');
   const feedIsScopedToOfficialDomain = allowed.some(domain =>
     normalizedFeed.includes('site:' + domain)
