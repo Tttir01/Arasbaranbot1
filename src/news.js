@@ -2883,54 +2883,21 @@ function isOfficialPublisher(item) {
   }
 
   // Some Google News RSS responses omit the <source url="..."> field.
-  // In that case, accept only when the configured feed explicitly searches
-  // an allowlisted official domain AND the publisher label matches an
-  // official institution. A Google News URL by itself is never sufficient.
+  // Accept the publisher label fallback only for feeds explicitly scoped
+  // to an allowlisted domain; the redirect URL alone is never sufficient.
   const publisher = String(item && item.publisherName || '').toLowerCase();
   const feedUrl = String(item && item.sourceUrl || '');
   let decodedFeed = feedUrl;
   try { decodedFeed = decodeURIComponent(feedUrl); } catch (_) {}
+  const normalizedFeed = decodedFeed.toLowerCase().replace(/\s+/g, '');
   const feedIsScopedToOfficialDomain = allowed.some(domain =>
-    new RegExp('site\\s*:\\s*' + domain.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\function isOfficialPublisher(item) {
-  const configured = String(
-    process.env.OFFICIAL_SOURCE_DOMAINS ||
-    'varzgan.ostan-as.ir,ostan-as.ir,medu.gov.ir'
-  );
-
-  const allowed = configured
-    .split(',')
-    .map(domain => domain.trim().toLowerCase())
-    .filter(Boolean);
-
-  const candidates = [
-    item && item.publisherUrl,
-    item && item.url,
-    item && item.link
-  ].filter(Boolean);
-
-  for (const candidate of candidates) {
-    try {
-      let host = new URL(candidate).hostname.toLowerCase();
-      if (host.startsWith('www.')) host = host.slice(4);
-      // Never trust the Google News redirect host as the publisher.
-      if (host === 'news.google.com' || host.endsWith('.news.google.com')) continue;
-      if (allowed.some(domain => host === domain || host.endsWith('.' + domain))) {
-        return true;
-      }
-    } catch (_) {
-      // Invalid URLs are not trusted as source evidence.
-    }
-  }
-
-  return false;
-}') + '(?:\\s|$|[&])', 'i').test(decodedFeed)
+    normalizedFeed.includes('site:' + domain)
   );
   const recognizedOfficialPublisher =
     /وزارت آموزش و پرورش|آموزش و پرورش|استانداری|فرمانداری|اداره کل آموزش و پرورش/.test(publisher);
 
   return feedIsScopedToOfficialDomain && recognizedOfficialPublisher;
 }
-
 
 function normalizeItem(
   raw,
