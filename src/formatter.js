@@ -84,7 +84,7 @@ function sourceLabel(sourceName) {
     return '';
   }
 
-  return `به گزارش اخبار ارسباران به نقل از ${name}`;
+  return `به نقل از ${name}`;
 }
 
 function makeSummary(
