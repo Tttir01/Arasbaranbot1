@@ -203,7 +203,25 @@ jobs:
           require('./src/storage');
 
           console.log('Loading news...');
-          require('./src/news');
+          const { isOfficialPublisher } = require('./src/news');
+
+          const assert = require('node:assert/strict');
+          assert.equal(
+            isOfficialPublisher({ publisherUrl: 'https://varzgan.ostan-as.ir/news/1', url: 'https://news.google.com/rss/articles/1' }),
+            true,
+            'official government publisher should pass'
+          );
+          assert.equal(
+            isOfficialPublisher({ publisherUrl: 'https://ostan-as.ir.attacker.example/news', url: 'https://news.google.com/rss/articles/2' }),
+            false,
+            'lookalike domain must be rejected'
+          );
+          assert.equal(
+            isOfficialPublisher({ url: 'https://news.google.com/rss/articles/3' }),
+            false,
+            'Google News redirect alone must not count as official publisher'
+          );
+          console.log('Official publisher allowlist tests: OK');
 
           console.log('Loading telegram...');
           require('./src/telegram');
