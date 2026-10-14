@@ -2176,6 +2176,21 @@ async function fetchRSSSource(
               entry.guid
             ),
 
+          // Google News RSS exposes publisher metadata separately from its redirect URL.
+          publisherName:
+            firstNonEmpty(
+              entry.source && entry.source.title,
+              entry.source && entry.source.name,
+              ''
+            ),
+
+          publisherUrl:
+            firstNonEmpty(
+              entry.source && entry.source.url,
+              entry.sourceUrl,
+              ''
+            ),
+
           imageUrl:
             extractRSSImage(
               entry
@@ -2828,6 +2843,40 @@ function createNewsHash(
  * نرمال‌سازی خبر
  * ============================================================
  */
+
+function isOfficialPublisher(item) {
+  const configured = String(
+    process.env.OFFICIAL_SOURCE_DOMAINS ||
+    'varzgan.ostan-as.ir,ostan-as.ir,medu.gov.ir'
+  );
+
+  const allowed = configured
+    .split(',')
+    .map(domain => domain.trim().toLowerCase().replace(/^\\.+|\\.+$/g, ''))
+    .filter(Boolean);
+
+  const candidates = [
+    item && item.publisherUrl,
+    item && item.url,
+    item && item.link
+  ].filter(Boolean);
+
+  for (const candidate of candidates) {
+    try {
+      const host = new URL(candidate).hostname.toLowerCase().replace(/^www\\./, '');
+      // Never trust the Google News redirect host as the publisher.
+      if (host === 'news.google.com' || host.endsWith('.news.google.com')) continue;
+      if (allowed.some(domain => host === domain || host.endsWith('.' + domain))) {
+        return true;
+      }
+    } catch (_) {
+      // Invalid URLs are not trusted as source evidence.
+    }
+  }
+
+  return false;
+}
+
 
 function normalizeItem(
   raw,
@@ -3947,10 +3996,23 @@ async function fetchAllNews(
   );
 
   /*
+   * اعتبارسنجی دامنه ناشر؛ Google News فقط ابزار کشف خبر است، نه منبع رسمی.
+   */
+  const officialItems = allItems.filter(function (item) {
+    const accepted = isOfficialPublisher(item);
+    if (!accepted) {
+      console.log('⛔ ناشر رسمی قابل تأیید نیست؛ رد شد: ' + (item.title || 'بدون عنوان'));
+    }
+    return accepted;
+  });
+
+  console.log('🏛️ ناشر رسمی تأییدشده: ' + officialItems.length);
+
+  /*
    * ابتدا نرمال‌سازی
    */
   const normalized =
-    allItems
+    officialItems
       .map(
         function (item) {
           return normalizeItem(
@@ -4248,6 +4310,9 @@ module.exports = {
   isOldNews,
   formatPersianDate,
   toPersianDigits,
+
+  /* منبع و دامنه */
+  isOfficialPublisher,
 
   /* متن */
   cleanText,
