@@ -11,7 +11,7 @@ const { loadHistory, hasNews, saveNews } = require('./storage');
 
 const CONFIG = {
   timezone: process.env.TIMEZONE || 'Asia/Tehran',
-  maxPostsPerRun: Number(process.env.MAX_POSTS_PER_RUN || 8)
+  maxPostsPerRun: Number(process.env.MAX_POSTS_PER_RUN || 3)
 };
 
 function sourcePriority(source) {
