@@ -1363,13 +1363,15 @@ function isIncompleteNews(item) {
   /*
    * پست‌های خیلی کوتاه
    */
-  if (
-    normalizeForCompare(body)
-      .length < 25 &&
-    title.length < 40
-  ) {
-    return true;
-  }
+  // خبرهای بسیار کوتاه، تیترهای مبهم و پست‌های بدون محتوای خبری رد شوند.
+  const cleanTitleLength = normalizeForCompare(title).length;
+  const cleanBodyLength = normalizeForCompare(body).length;
+
+  if (cleanTitleLength < 18) return true;
+  if (cleanBodyLength < 45 && cleanTitleLength < 55) return true;
+
+  // تیترهای کلی که ارزش خبری مستقل ندارند.
+  if (/^(فوری|مهم|خبر|اطلاعیه|قابل توجه|توجه|تصاویر|ویدیو|گزارش تصویری)[!！.\s:：-]*$/i.test(title.trim())) return true;
 
   return false;
 }
