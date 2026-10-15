@@ -1979,41 +1979,33 @@ async function fetchTelegramSource(
 function extractTelegramDateFromElement(
   message
 ) {
-  if (!message) {
+  if (!message || !message.length) {
     return null;
   }
 
+  /*
+   * تاریخ باید از همان پیام تلگرام خوانده شود؛
+   * هر عنصر time را جداگانه بررسی می‌کنیم تا تاریخ
+   * یک عنصر دیگر یا مقدار تکراری جای تاریخ پست ننشیند.
+   */
   const values = [];
 
-  message
-    .find('time[datetime]')
-    .each(
-      function () {
-        const value =
-          message
-            .find('time[datetime]')
-            .first()
-            .attr('datetime');
+  message.find('a.tgme_widget_message_date time[datetime], time[datetime]')
+    .each(function () {
+      const value = String(
+        (typeof this.attribs !== 'undefined' && this.attribs.datetime) ||
+        message.find('a.tgme_widget_message_date time[datetime]').attr('datetime') ||
+        ''
+      ).trim();
 
-        if (value) {
-          values.push(value);
-        }
+      if (value && !values.includes(value)) {
+        values.push(value);
       }
-    );
+    });
 
-  for (
-    let i = 0;
-    i < values.length;
-    i++
-  ) {
-    const date =
-      parseDate(
-        values[i]
-      );
-
-    if (date) {
-      return date;
-    }
+  for (const value of values) {
+    const date = parseDate(value);
+    if (date) return date;
   }
 
   return null;
