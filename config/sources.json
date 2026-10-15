@@ -82,6 +82,37 @@
         "ورزقان"
       ],
       "enabled": true
+    },
+    {
+      "id": "telegram-enekas-varzqan",
+      "name": "انعکاس ورزقان",
+      "type": "telegram",
+      "url": "https://t.me/s/enekasvarzeghan",
+      "keywords": [
+        "ورزقان",
+        "ورزگان",
+        "سونگون",
+        "خاروانا"
+      ],
+      "areas": [
+        "ورزقان"
+      ],
+      "enabled": true
+    },
+    {
+      "id": "telegram-enekas-kharvana",
+      "name": "انعکاس خاروانا",
+      "type": "telegram",
+      "url": "https://t.me/s/kharvanakhabarlari",
+      "keywords": [
+        "خاروانا",
+        "دیزمار",
+        "ورزقان"
+      ],
+      "areas": [
+        "خاروانا"
+      ],
+      "enabled": true
     }
   ]
 }
