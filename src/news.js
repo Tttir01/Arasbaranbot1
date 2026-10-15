@@ -2203,6 +2203,13 @@ async function fetchRSSSource(
               entry
             ),
 
+          // منطقهٔ تعریف‌شده برای این فید را نگه می‌داریم؛
+          // بعضی RSSها عنوان کوتاه دارند و نام منطقه فقط در عبارت جست‌وجوی فید است.
+          location:
+            Array.isArray(source.areas)
+              ? source.areas.join(' ')
+              : '',
+
           source:
             source.name,
 
