@@ -4063,7 +4063,13 @@ async function fetchAllNews(
    * اعتبارسنجی دامنه ناشر؛ Google News فقط ابزار کشف خبر است، نه منبع رسمی.
    */
   const officialItems = allItems.filter(function (item) {
-    const accepted = isOfficialPublisher(item);
+    // فقط دو کانال محلی که صریحاً در تنظیمات پروژه تأیید شده‌اند،
+    // با آدرس فید خودشان پذیرفته می‌شوند؛ نه صرفاً با نام کانال.
+    const feedUrl = String(item && item.sourceUrl || '').trim().toLowerCase();
+    const trustedTelegramFeed =
+      /^https?:\/\/t\.me\/s\/(?:enekasvarzeghan|kharvanakhabarlari)(?:[/?#]|$)/i.test(feedUrl);
+
+    const accepted = trustedTelegramFeed || isOfficialPublisher(item);
     if (!accepted) {
       console.log('⛔ ناشر رسمی قابل تأیید نیست؛ رد شد: ' + (item.title || 'بدون عنوان'));
     }
