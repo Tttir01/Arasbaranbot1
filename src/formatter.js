@@ -38,6 +38,22 @@ function cleanTitle(title) {
     .trim();
 }
 
+function isGenericTitle(title) {
+  const value = cleanTitle(title);
+  if (!value || value.length < 18) return true;
+  return /^(آذربایجان شرقی|اخبار آذربایجان شرقی|وزارت آموزش و پرورش|آموزش و پرورش|خبر جدید|اخبار|اخبار روز)(\\s*[-|:：].*)?$/i.test(value);
+}
+
+function titleFromDescription(description) {
+  const value = cleanText(description);
+  if (!value || value.length < 45) return '';
+  const firstSentence = value.split(/(?<=[.!؟])\\s+/)[0] || value;
+  const title = firstSentence.length > 110
+    ? firstSentence.slice(0, 107).replace(/\\s+\\S*$/, '') + '…'
+    : firstSentence;
+  return cleanTitle(title);
+}
+
 function formatPersianDate(
   date,
   timezone
