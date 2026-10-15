@@ -2871,8 +2871,8 @@ function isOfficialPublisher(item) {
   ].filter(Boolean)) {
     try {
       const parsedUrl = new URL(candidate);
-      const host = parsedUrl.hostname.toLowerCase().replace(/^www\\./, '');
-      const match = parsedUrl.pathname.match(/^\\/(?:s\\/)?([a-z0-9_]+)(?:\\/|$)/i);
+      const host = parsedUrl.hostname.toLowerCase().replace(/^www\./, '');
+      const match = parsedUrl.pathname.match(/^\/(?:s\/)?([a-z0-9_]+)(?:\/|$)/i);
       if (
         (host === 't.me' || host === 'telegram.me') &&
         match &&
