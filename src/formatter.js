@@ -301,7 +301,7 @@ async function formatNews(
   }
 
   const source = sourceLabel(item.publisherName || item.source || item.sourceName);
-  const sourceUrl = /^https?:\\/\\//i.test(String(item.url || ''))
+  const sourceUrl = /^https?:\/\//i.test(String(item.url || ''))
     ? String(item.url).trim()
     : '';
 
