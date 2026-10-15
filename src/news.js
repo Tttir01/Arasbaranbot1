@@ -1984,33 +1984,28 @@ function extractTelegramDateFromElement(
   }
 
   /*
-   * تاریخ باید از همان پیام تلگرام خوانده شود؛
-   * هر عنصر time را جداگانه بررسی می‌کنیم تا تاریخ
-   * یک عنصر دیگر یا مقدار تکراری جای تاریخ پست ننشیند.
+   * Telegram attaches the canonical publication timestamp to the
+   * time element inside the message's own date link. Read that exact
+   * attribute first; do not accidentally reuse another message's date.
    */
-  const values = [];
+  const selectors = [
+    'a.tgme_widget_message_date time[datetime]',
+    'time[datetime]'
+  ];
 
-  message.find('a.tgme_widget_message_date time[datetime], time[datetime]')
-    .each(function () {
-      const value = String(
-        (typeof this.attribs !== 'undefined' && this.attribs.datetime) ||
-        message.find('a.tgme_widget_message_date time[datetime]').attr('datetime') ||
-        ''
-      ).trim();
+  for (const selector of selectors) {
+    const value = String(
+      message.find(selector).first().attr('datetime') || ''
+    ).trim();
 
-      if (value && !values.includes(value)) {
-        values.push(value);
-      }
-    });
+    if (!value) continue;
 
-  for (const value of values) {
     const date = parseDate(value);
     if (date) return date;
   }
 
   return null;
 }
-
 
 function extractTelegramMessageId(
   url
