@@ -1951,16 +1951,15 @@ async function fetchTelegramSource(
             imageUrl,
 
           source:
-            firstNonEmpty(
-              entry.source && entry.source.title,
-              source.name
-            ),
+            source.name || 'منبع تلگرام',
 
           sourceUrl:
-            firstNonEmpty(
-              entry.source && entry.source.url,
-              source.url
-            )
+            source.url || '',
+
+          location:
+            Array.isArray(source.areas)
+              ? source.areas.join(' ')
+              : ''
         });
       }
     );
@@ -2859,6 +2858,33 @@ function createNewsHash(
  */
 
 function isOfficialPublisher(item) {
+  // کانال‌های محلیِ تأییدشده فقط با نام دقیق و مسیر مشخص پذیرفته می‌شوند.
+  // لینک خبر تلگرام به‌تنهایی برای سایر کانال‌ها مجوز انتشار نیست.
+  const trustedTelegramChannels = new Set([
+    'enekasvarzeghan',
+    'kharvanakhabarlari'
+  ]);
+  for (const candidate of [
+    item && item.sourceUrl,
+    item && item.url,
+    item && item.link
+  ].filter(Boolean)) {
+    try {
+      const parsedUrl = new URL(candidate);
+      const host = parsedUrl.hostname.toLowerCase().replace(/^www\\./, '');
+      const match = parsedUrl.pathname.match(/^\\/(?:s\\/)?([a-z0-9_]+)(?:\\/|$)/i);
+      if (
+        (host === 't.me' || host === 'telegram.me') &&
+        match &&
+        trustedTelegramChannels.has(match[1].toLowerCase())
+      ) {
+        return true;
+      }
+    } catch (_) {
+      // Invalid URLs are not trusted.
+    }
+  }
+
   const configured = String(
     process.env.OFFICIAL_SOURCE_DOMAINS ||
     'varzgan.ostan-as.ir,ostan-as.ir,medu.gov.ir'
