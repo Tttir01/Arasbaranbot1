@@ -2847,9 +2847,17 @@ function createNewsHash(
 function isOfficialPublisher(item) {
   // کانال‌های محلیِ تأییدشده فقط با نام دقیق و مسیر مشخص پذیرفته می‌شوند.
   // لینک خبر تلگرام به‌تنهایی برای سایر کانال‌ها مجوز انتشار نیست.
+  // کانال‌های محلی تعریف‌شده در config/sources.json؛ فقط فید خود کانال پذیرفته می‌شود.
   const trustedTelegramChannels = new Set([
+    'varzaghan_khabari',
+    'kharvanakhabarlari',
+    'asrevarzeghan',
+    'avayehvarzeghan',
+    'dizmar',
+    'varzeghannews',
+    'farmandari_varzeghan',
     'enekasvarzeghan',
-    'kharvanakhabarlari'
+    'sedayevarzgan'
   ]);
   for (const candidate of [
     item && item.sourceUrl,
@@ -4054,7 +4062,7 @@ async function fetchAllNews(
     // با آدرس فید خودشان پذیرفته می‌شوند؛ نه صرفاً با نام کانال.
     const feedUrl = String(item && item.sourceUrl || '').trim().toLowerCase();
     const trustedTelegramFeed =
-      /^https?:\/\/t\.me\/s\/(?:enekasvarzeghan|kharvanakhabarlari)(?:[/?#]|$)/i.test(feedUrl);
+      /^https?:\/\/t\.me\/s\/(?:varzaghan_khabari|kharvanakhabarlari|asrevarzeghan|avayehvarzeghan|dizmar|varzeghannews|farmandari_varzeghan|enekasvarzeghan|sedayevarzgan)(?:[/?#]|$)/i.test(feedUrl);
 
     const accepted = trustedTelegramFeed || isOfficialPublisher(item);
     if (!accepted) {
