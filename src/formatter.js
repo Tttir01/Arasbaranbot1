@@ -254,15 +254,23 @@ async function formatNews(
     options.forPhoto !== false &&
     !!item.imageUrl;
 
-  const title =
-    cleanTitle(item.title) ||
-    'خبر جدید';
+  let title = cleanTitle(item.title);
 
-  let description =
-    makeSummary(
-      item.description,
-      forPhoto ? 560 : 1000
-    );
+  let description = makeSummary(
+    item.description || item.content || item.summary || item.text,
+    forPhoto ? 560 : 1000
+  );
+
+  // اگر RSS به‌جای تیتر خبر، فقط نام استان/ناشر را داده باشد،
+  // از متن واقعی خبر تیتر می‌سازیم؛ اگر متن کافی نیست، خبر را منتشر نمی‌کنیم.
+  if (isGenericTitle(title)) {
+    title = titleFromDescription(description);
+  }
+
+  if (isGenericTitle(title) || !description || description.length < 35) {
+    console.log('⛔ خبر به‌دلیل تیتر یا متن ناکافی منتشر نشد: ' + (item.title || 'بدون عنوان'));
+    return '';
+  }
 
   let finalTitle = title;
 
@@ -276,7 +284,10 @@ async function formatNews(
     console.log('⚠️ بازنویسی AI در دسترس نبود: ' + error.message);
   }
 
-  const source = '';
+  const source = sourceLabel(item.publisherName || item.source || item.sourceName);
+  const sourceUrl = /^https?:\\/\\//i.test(String(item.url || ''))
+    ? String(item.url).trim()
+    : '';
 
   let publishedAt = null;
 
@@ -323,6 +334,10 @@ async function formatNews(
     `🕐 ${date} - ${time}`
   );
 
+  if (sourceUrl) {
+    parts.push('🔗 لینک منبع: ' + sourceUrl);
+  }
+
   parts.push(
     CHANNEL_ID
   );
@@ -335,13 +350,14 @@ async function formatNews(
     text.length > 950
   ) {
     text = [
-      `📰 ${title}`,
+      `📰 ${finalTitle}`,
       source,
       makeSummary(
-        item.description,
-        500
+        item.description || item.content || item.summary || item.text,
+        420
       ),
       `🕐 ${date} - ${time}`,
+      sourceUrl ? '🔗 لینک منبع: ' + sourceUrl : '',
       CHANNEL_ID
     ]
       .filter(Boolean)
