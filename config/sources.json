@@ -504,6 +504,74 @@
         "خاروانا"
       ],
       "enabled": true
+    },
+    {
+      "id": "telegram-azar-anjoman",
+      "name": "آذربایجان انجمن",
+      "type": "telegram",
+      "url": "https://t.me/s/azar_anjoman",
+      "keywords": [
+        "ورزقان",
+        "خاروانا",
+        "دیزمار",
+        "آذربایجان شرقی"
+      ],
+      "areas": [
+        "ورزقان",
+        "خاروانا"
+      ],
+      "enabled": true
+    },
+    {
+      "id": "telegram-anajnews",
+      "name": "آناج نیوز",
+      "type": "telegram",
+      "url": "https://t.me/s/anajnews",
+      "keywords": [
+        "ورزقان",
+        "خاروانا",
+        "دیزمار",
+        "آذربایجان شرقی"
+      ],
+      "areas": [
+        "ورزقان",
+        "خاروانا"
+      ],
+      "enabled": true
+    },
+    {
+      "id": "telegram-entekhab-ir",
+      "name": "انتخاب",
+      "type": "telegram",
+      "url": "https://t.me/s/entekhab_ir",
+      "keywords": [
+        "ورزقان",
+        "خاروانا",
+        "دیزمار",
+        "آذربایجان شرقی"
+      ],
+      "areas": [
+        "ورزقان",
+        "خاروانا"
+      ],
+      "enabled": true
+    },
+    {
+      "id": "telegram-s-ahar-varzeqan",
+      "name": "اهر ورزقان",
+      "type": "telegram",
+      "url": "https://t.me/s/s_AharVarzeqan",
+      "keywords": [
+        "ورزقان",
+        "خاروانا",
+        "دیزمار",
+        "اهر"
+      ],
+      "areas": [
+        "ورزقان",
+        "خاروانا"
+      ],
+      "enabled": true
     }
   ]
 }
