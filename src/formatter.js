@@ -18,8 +18,20 @@ function toPersianDigits(value) {
     .replace(/9/g, '۹');
 }
 
+function stripChannelPromo(value) {
+  return String(value || '')
+    // امضای تبلیغاتی کانال‌های تلگرامی
+    .replace(/#?\s*دیزمار\s*؛?[^|]*?(?:اینستاگرام|تلگرام)?[^\n]*$/gim, ' ')
+    .replace(/مرجع اخبار منطقه[^\n]*$/gim, ' ')
+    .replace(/اخبار داغ آذربایجان[^\n]*$/gim, ' ')
+    .replace(/دنبال کنید[^\n]*$/gim, ' ')
+    .replace(/اینستاگرام\s*\|\s*تلگرام/gim, ' ')
+    .replace(/[🔗📡🌐👇🧨\s]+$/g, ' ')
+    .trim();
+}
+
 function cleanText(text) {
-  return String(text || '')
+  return stripChannelPromo(String(text || ''))
     .replace(/<[^>]*>/g, ' ')
     .replace(/https?:\/\/\S+/gi, '')
     .replace(/www\.\S+/gi, '')
@@ -100,7 +112,9 @@ function sourceLabel(sourceName) {
     return '';
   }
 
-  return `به نقل از ${name}`;
+  // نام منبع در متن پست منتشر نمی‌شود.
+  // منبع فقط در لاگ اجرا و تاریخچه اخبار (data/news-history.json) نگه داشته می‌شود.
+  return '';
 }
 
 function makeSummary(
@@ -300,6 +314,17 @@ async function formatNews(
     console.log('⚠️ بازنویسی AI در دسترس نبود: ' + error.message);
   }
 
+  // در خبرهای کانال تلگرامی، کل متن داخل تیتر است:
+  // جمله اول تیتر می‌شود و بقیه به متن خبر می‌رود (بدون تکرار).
+  const splitTitleBodyResult = splitTitleBody(finalTitle, description);
+  finalTitle = splitTitleBodyResult.title;
+  description = splitTitleBodyResult.body;
+
+  finalTitle = shortenTitle(finalTitle);
+
+  // تیتر و جمله‌های تکراری داخل متن پست حذف می‌شوند
+  description = dedupeAgainstTitle(description, finalTitle);
+
   const source = sourceLabel(item.publisherName || item.source || item.sourceName);
   const sourceUrl = /^https?:\/\//i.test(String(item.url || ''))
     ? String(item.url).trim()
@@ -350,9 +375,6 @@ async function formatNews(
     `🕐 ${date} - ${time}`
   );
 
-  if (sourceUrl) {
-    parts.push('🔗 لینک منبع: ' + sourceUrl);
-  }
 
   parts.push(
     CHANNEL_ID
@@ -395,3 +417,135 @@ module.exports = {
   formatPersianTime,
   toPersianDigits
 };
+
+
+/* ============================================================
+ * حذف تکرار تیتر و جمله‌های تکراری از متن پست
+ * ============================================================
+ */
+
+function similarityRatio(a, b) {
+  const wordsA = new Set(String(a || '').split(' ').filter(Boolean));
+  const wordsB = new Set(String(b || '').split(' ').filter(Boolean));
+
+  if (!wordsA.size || !wordsB.size) return 0;
+
+  let common = 0;
+  wordsA.forEach(word => {
+    if (wordsB.has(word)) common++;
+  });
+
+  const union = new Set([...wordsA, ...wordsB]).size;
+  return union ? common / union : 0;
+}
+
+function dedupeAgainstTitle(text, title) {
+  const value = String(text || '').trim();
+  if (!value) return '';
+
+  const titleKey = normalizeForSimilarity(title);
+  const sentences = value
+    .split(/(?<=[.!؟…])\s+|\n+/)
+    .map(part => part.trim())
+    .filter(Boolean);
+
+  const kept = [];
+  const seen = [];
+
+  // اگر کل متن، همان تیتر است، متن تکرار نشود
+  const wholeKey = normalizeForSimilarity(value);
+  if (titleKey && wholeKey && (titleKey.includes(wholeKey) || wholeKey.includes(titleKey))) {
+    return '';
+  }
+
+  for (const sentence of sentences) {
+    const key = normalizeForSimilarity(sentence);
+    if (!key) continue;
+
+    // جمله‌ای که داخل تیتر آمده یا تیتر داخل آن آمده
+    if (titleKey && key.length > 20 && (titleKey.includes(key) || key.includes(titleKey))) {
+      continue;
+    }
+
+    // جمله‌ای که خودِ تیتر را دوباره می‌گوید
+    if (titleKey && (key === titleKey || (key.includes(titleKey) && key.length <= titleKey.length * 1.4))) {
+      continue;
+    }
+
+    // جمله اول اگر تقریباً همان تیتر باشد
+    if (titleKey && kept.length === 0 && similarityRatio(key, titleKey) >= 0.8) {
+      continue;
+    }
+
+    // جمله تکراری داخل خود متن
+    if (seen.some(previous => previous === key || similarityRatio(previous, key) >= 0.85)) {
+      continue;
+    }
+
+    seen.push(key);
+    kept.push(sentence);
+  }
+
+  return kept.join(' ').trim();
+}
+
+
+/* ============================================================
+ * کوتاه کردن تیترهای تلگرامی که کل متن خبر را در خود دارند
+ * ============================================================
+ */
+
+function shortenTitle(title) {
+  const value = cleanText(title);
+  if (!value) return '';
+
+  const firstSentence = value.split(/(?<=[.!؟…])\s+/)[0] || value;
+  const candidate = firstSentence.length > 25 ? firstSentence : value;
+
+  if (candidate.length <= 120) return candidate.trim();
+
+  const cut = candidate.slice(0, 117);
+  const lastSpace = cut.lastIndexOf(' ');
+  return (lastSpace > 90 ? cut.slice(0, lastSpace) : cut).trim() + '…';
+}
+
+
+/* ============================================================
+ * جدا کردن تیتر و متن وقتی هر دو یک چیز هستند
+ * ============================================================
+ */
+
+function splitTitleBody(title, description) {
+  const head = String(title || '').trim();
+  const body = String(description || '').trim();
+
+  const headKey = normalizeForSimilarity(head);
+  const bodyKey = normalizeForSimilarity(body);
+
+  if (!headKey || !bodyKey) return { title: head, body };
+
+  const identical =
+    headKey === bodyKey ||
+    headKey.includes(bodyKey) ||
+    bodyKey.includes(headKey);
+
+  if (!identical) return { title: head, body };
+
+  // جداکننده‌های رایج کانال‌های تلگرامی: ▫️ ▪️ —
+  const bulletSplit = head.split(/\s(?=[▫▪•])/).map(part => part.trim()).filter(Boolean);
+  const sentences = (bulletSplit.length > 1 ? bulletSplit : head.split(/(?<=[.!؟…])\s+/))
+    .map(part => part.trim())
+    .filter(Boolean);
+
+  if (sentences.length < 2) return { title: head, body: '' };
+
+  let newTitle = sentences[0];
+  if (newTitle.length > 120) {
+    newTitle = newTitle.slice(0, 117).replace(/\s+\S*$/, '') + '…';
+  }
+
+  return {
+    title: newTitle,
+    body: sentences.slice(1).join(' ').trim()
+  };
+}

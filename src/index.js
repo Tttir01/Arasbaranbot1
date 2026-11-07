@@ -7,7 +7,7 @@ const { loadSources } = require('./sources');
 const { formatNews } = require('./formatter');
 const { getMe, sendMessage, sendPhoto, sendVideo } = require('./telegram');
 const { publishNews: publishInstagram, enabled: instagramEnabled } = require('./instagram');
-const { loadHistory, hasNews, saveNews } = require('./storage');
+const { loadHistory, hasNews, saveNews, isSameNews } = require('./storage');
 
 const CONFIG = {
   timezone: process.env.TIMEZONE || 'Asia/Tehran',
@@ -88,6 +88,9 @@ async function main() {
 
   const ranked = rankNews(news);
 
+  // خبرهایی که در همین اجرا ارسال شده‌اند؛ جلوگیری از تکرار در یک اجرا
+  const sentThisRun = [];
+
   let sent = 0;
   let skipped = 0;
   let failed = 0;
@@ -109,6 +112,13 @@ async function main() {
     if (hasNews(item)) {
       skipped++;
       console.log(`↩️ تکراری از تاریخچه: ${item.title}`);
+      continue;
+    }
+
+    // اگر همین خبر در اجرای فعلی منتشر شده، دوباره ارسال نشود
+    if (sentThisRun.some(previous => isSameNews(item, previous))) {
+      skipped++;
+      console.log(`↩️ تکراری در همین اجرا: ${item.title}`);
       continue;
     }
 
@@ -140,6 +150,7 @@ async function main() {
 
       // ابتدا تاریخچه تلگرام ثبت می‌شود تا خطای Instagram باعث ارسال تکراری تلگرام نشود.
       saveNews(item);
+      sentThisRun.push(item);
       sent++;
 
       console.log(`✅ ارسال شد به Telegram: ${type}`);

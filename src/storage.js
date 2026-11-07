@@ -149,5 +149,6 @@ function saveNews(item) {
 module.exports = {
   loadHistory,
   hasNews,
-  saveNews
+  saveNews,
+  isSameNews
 };
