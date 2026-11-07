@@ -531,8 +531,9 @@ function splitTitleBody(title, description) {
 
   if (!identical) return { title: head, body };
 
-  const sentences = head
-    .split(/(?<=[.!؟…])\s+/)
+  // جداکننده‌های رایج کانال‌های تلگرامی: ▫️ ▪️ —
+  const bulletSplit = head.split(/\s*(?=[▫️▪️•]\s)/).map(part => part.trim()).filter(Boolean);
+  const sentences = (bulletSplit.length > 1 ? bulletSplit : head.split(/(?<=[.!؟…])\s+/))
     .map(part => part.trim())
     .filter(Boolean);
 
