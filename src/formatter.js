@@ -314,7 +314,12 @@ async function formatNews(
     console.log('⚠️ بازنویسی AI در دسترس نبود: ' + error.message);
   }
 
-  // در خبرهای کانال تلگرامی، کل متن داخل تیتر است؛ تیتر کوتاه می‌شود
+  // در خبرهای کانال تلگرامی، کل متن داخل تیتر است:
+  // جمله اول تیتر می‌شود و بقیه به متن خبر می‌رود (بدون تکرار).
+  const splitTitleBodyResult = splitTitleBody(finalTitle, description);
+  finalTitle = splitTitleBodyResult.title;
+  description = splitTitleBodyResult.body;
+
   finalTitle = shortenTitle(finalTitle);
 
   // تیتر و جمله‌های تکراری داخل متن پست حذف می‌شوند
@@ -502,4 +507,44 @@ function shortenTitle(title) {
   const cut = candidate.slice(0, 117);
   const lastSpace = cut.lastIndexOf(' ');
   return (lastSpace > 90 ? cut.slice(0, lastSpace) : cut).trim() + '…';
+}
+
+
+/* ============================================================
+ * جدا کردن تیتر و متن وقتی هر دو یک چیز هستند
+ * ============================================================
+ */
+
+function splitTitleBody(title, description) {
+  const head = String(title || '').trim();
+  const body = String(description || '').trim();
+
+  const headKey = normalizeForSimilarity(head);
+  const bodyKey = normalizeForSimilarity(body);
+
+  if (!headKey || !bodyKey) return { title: head, body };
+
+  const identical =
+    headKey === bodyKey ||
+    headKey.includes(bodyKey) ||
+    bodyKey.includes(headKey);
+
+  if (!identical) return { title: head, body };
+
+  const sentences = head
+    .split(/(?<=[.!؟…])\s+/)
+    .map(part => part.trim())
+    .filter(Boolean);
+
+  if (sentences.length < 2) return { title: head, body: '' };
+
+  let newTitle = sentences[0];
+  if (newTitle.length > 120) {
+    newTitle = newTitle.slice(0, 117).replace(/\s+\S*$/, '') + '…';
+  }
+
+  return {
+    title: newTitle,
+    body: sentences.slice(1).join(' ').trim()
+  };
 }
