@@ -2882,7 +2882,14 @@ function isOfficialPublisher(item) {
 
   const configured = String(
     process.env.OFFICIAL_SOURCE_DOMAINS ||
-    'varzgan.ostan-as.ir,ostan-as.ir,medu.gov.ir'
+    'varzgan.ostan-as.ir,ostan-as.ir,medu.gov.ir,' +
+      // خبرگزاری‌های استانی و ملی
+      'irna.ir,isna.ir,mehrnews.com,tasnimnews.com,farsnews.ir,' +
+      'iribnews.ir,irib.ir,tabriz.irib.ir,anaj.ir,' +
+      // رسانه محلی و هواشناسی
+      'aharnews.ir,irimo.ir,' +
+      // ادارات و وزارتخانه‌های مرتبط
+      'behdasht.gov.ir,mporg.ir,mrud.ir,niroo.org'
   );
 
   const allowed = configured
