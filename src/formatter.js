@@ -100,7 +100,9 @@ function sourceLabel(sourceName) {
     return '';
   }
 
-  return `به نقل از ${name}`;
+  // نام منبع در متن پست منتشر نمی‌شود.
+  // منبع فقط در لاگ اجرا و تاریخچه اخبار (data/news-history.json) نگه داشته می‌شود.
+  return '';
 }
 
 function makeSummary(
@@ -350,9 +352,6 @@ async function formatNews(
     `🕐 ${date} - ${time}`
   );
 
-  if (sourceUrl) {
-    parts.push('🔗 لینک منبع: ' + sourceUrl);
-  }
 
   parts.push(
     CHANNEL_ID
