@@ -284,11 +284,13 @@ async function formatNews(
     options.forPhoto !== false &&
     !!item.imageUrl;
 
-  let title = cleanTitle(item.title);
+  let title = lightEdit(cleanTitle(item.title));
 
-  let description = makeSummary(
-    item.description || item.content || item.summary || item.text,
-    forPhoto ? 560 : 1000
+  let description = lightEdit(
+    makeSummary(
+      item.description || item.content || item.summary || item.text,
+      forPhoto ? 560 : 1000
+    )
   );
 
   // اگر RSS به‌جای تیتر خبر، فقط نام استان/ناشر را داده باشد،
@@ -548,4 +550,57 @@ function splitTitleBody(title, description) {
     title: newTitle,
     body: sentences.slice(1).join(' ').trim()
   };
+}
+
+
+/* ============================================================
+ * پاک‌سازی لینک‌ها و ویرایش سبک خبر پیش از انتشار
+ * ============================================================
+ */
+
+function stripLinksAndIds(value) {
+  return String(value || '')
+    // لینک‌های وب و اپ‌های ایرانی
+    .replace(/(?:https?:\/\/|www\.)\S+/gi, ' ')
+    .replace(/\b(?:t|telegram)\.me\/\S+/gi, ' ')
+    .replace(/\b(?:ble|bale|eitaa|rubika|sapp|igap|whatsapp)\.(?:ir|com)\/\S+/gi, ' ')
+    .replace(/\binstagram\.com\/\S+/gi, ' ')
+    // یوزرنیم‌ها
+    .replace(/@[A-Za-z0-9_]{3,}/g, ' ')
+    // هشتگ‌ها (برند کانال‌ها و تبلیغات)
+    .replace(/#[\u0600-\u06FFA-Za-z0-9_]+/g, ' ')
+    // عبارت‌های تبلیغاتی
+    .replace(/(?:گزارش|خبر|عکس|فیلم|منبع|ارسال)\s*[:：]\s*[^\n]{0,60}$/gim, ' ')
+    .replace(/(?:دنبال کنید|عضو شوید|کلیک کنید|کانال ما|لینک زیر|ادامه در|بازنشر)/g, ' ')
+    .replace(/(?:مرجع اخبار|اخبار داغ)[^\n]{0,80}/g, ' ');
+}
+
+function lightEdit(value) {
+  let text = stripLinksAndIds(value);
+
+  text = String(text || '')
+    // نیم‌فاصله درست
+    .replace(/(^|[\s(«"'])می\s+/g, '$1می')
+    .replace(/(^|[\s(«"'])نمی\s+/g, '$1نمی')
+    .replace(/\s+ها\b/g, '‌ها')
+    .replace(/\s+های\b/g, '‌های')
+    .replace(/\s+تر\b/g, '‌تر')
+    .replace(/\s+ترین\b/g, '‌ترین')
+    // فاصله‌گذاری علائم
+    .replace(/\s+([،؛:.!؟])/g, '$1')
+    .replace(/([،؛])(?=\S)/g, '$1 ')
+    // کلمه تکراری پشت سر هم
+    .replace(/\b(\S{2,})\s+\1\b/g, '$1')
+    // فاصله‌های اضافی و خطوط خالی
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/^[\s،؛:._-]+/, '')
+    .trim();
+
+  if (!text) return '';
+
+  // جمله آخر نقطه داشته باشد
+  if (!/[.!؟…»)]$/.test(text)) text += '.';
+
+  return text;
 }
