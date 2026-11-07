@@ -18,8 +18,20 @@ function toPersianDigits(value) {
     .replace(/9/g, '۹');
 }
 
+function stripChannelPromo(value) {
+  return String(value || '')
+    // امضای تبلیغاتی کانال‌های تلگرامی
+    .replace(/#?\s*دیزمار\s*؛?[^|]*?(?:اینستاگرام|تلگرام)?[^\n]*$/gim, ' ')
+    .replace(/مرجع اخبار منطقه[^\n]*$/gim, ' ')
+    .replace(/اخبار داغ آذربایجان[^\n]*$/gim, ' ')
+    .replace(/دنبال کنید[^\n]*$/gim, ' ')
+    .replace(/اینستاگرام\s*\|\s*تلگرام/gim, ' ')
+    .replace(/[🔗📡🌐👇🧨\s]+$/g, ' ')
+    .trim();
+}
+
 function cleanText(text) {
-  return String(text || '')
+  return stripChannelPromo(String(text || ''))
     .replace(/<[^>]*>/g, ' ')
     .replace(/https?:\/\/\S+/gi, '')
     .replace(/www\.\S+/gi, '')
@@ -302,6 +314,9 @@ async function formatNews(
     console.log('⚠️ بازنویسی AI در دسترس نبود: ' + error.message);
   }
 
+  // در خبرهای کانال تلگرامی، کل متن داخل تیتر است؛ تیتر کوتاه می‌شود
+  finalTitle = shortenTitle(finalTitle);
+
   // تیتر و جمله‌های تکراری داخل متن پست حذف می‌شوند
   description = dedupeAgainstTitle(description, finalTitle);
 
@@ -432,9 +447,20 @@ function dedupeAgainstTitle(text, title) {
   const kept = [];
   const seen = [];
 
+  // اگر کل متن، همان تیتر است، متن تکرار نشود
+  const wholeKey = normalizeForSimilarity(value);
+  if (titleKey && wholeKey && (titleKey.includes(wholeKey) || wholeKey.includes(titleKey))) {
+    return '';
+  }
+
   for (const sentence of sentences) {
     const key = normalizeForSimilarity(sentence);
     if (!key) continue;
+
+    // جمله‌ای که داخل تیتر آمده یا تیتر داخل آن آمده
+    if (titleKey && key.length > 20 && (titleKey.includes(key) || key.includes(titleKey))) {
+      continue;
+    }
 
     // جمله‌ای که خودِ تیتر را دوباره می‌گوید
     if (titleKey && (key === titleKey || (key.includes(titleKey) && key.length <= titleKey.length * 1.4))) {
@@ -456,4 +482,24 @@ function dedupeAgainstTitle(text, title) {
   }
 
   return kept.join(' ').trim();
+}
+
+
+/* ============================================================
+ * کوتاه کردن تیترهای تلگرامی که کل متن خبر را در خود دارند
+ * ============================================================
+ */
+
+function shortenTitle(title) {
+  const value = cleanText(title);
+  if (!value) return '';
+
+  const firstSentence = value.split(/(?<=[.!؟…])\s+/)[0] || value;
+  const candidate = firstSentence.length > 25 ? firstSentence : value;
+
+  if (candidate.length <= 120) return candidate.trim();
+
+  const cut = candidate.slice(0, 117);
+  const lastSpace = cut.lastIndexOf(' ');
+  return (lastSpace > 90 ? cut.slice(0, lastSpace) : cut).trim() + '…';
 }
