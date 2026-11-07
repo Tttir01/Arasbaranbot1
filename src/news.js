@@ -2848,6 +2848,9 @@ function isOfficialPublisher(item) {
   // کانال‌های محلیِ تأییدشده فقط با نام دقیق و مسیر مشخص پذیرفته می‌شوند.
   // لینک خبر تلگرام به‌تنهایی برای سایر کانال‌ها مجوز انتشار نیست.
   // کانال‌های محلی تعریف‌شده در config/sources.json؛ فقط فید خود کانال پذیرفته می‌شود.
+  // کانال‌های محلیِ مورد تأیید مدیر پروژه برای دریافت خبر.
+  // تأیید این فهرست به معنی رسمی یا دولتی بودن کانال‌ها نیست؛
+  // محتوای خبر همچنان باید از فیلتر ارتباط محلی و سایر کنترل‌ها عبور کند.
   const trustedTelegramChannels = new Set([
     'varzaghan_khabari',
     'kharvanakhabarlari',
@@ -2857,7 +2860,11 @@ function isOfficialPublisher(item) {
     'varzeghannews',
     'farmandari_varzeghan',
     'enekasvarzeghan',
-    'sedayevarzgan'
+    'sedayevarzgan',
+    'azar_anjoman',
+    'anajnews',
+    'entekhab_ir',
+    's_aharvarzeqan'
   ]);
   for (const candidate of [
     item && item.sourceUrl,
@@ -4069,7 +4076,7 @@ async function fetchAllNews(
     // با آدرس فید خودشان پذیرفته می‌شوند؛ نه صرفاً با نام کانال.
     const feedUrl = String(item && item.sourceUrl || '').trim().toLowerCase();
     const trustedTelegramFeed =
-      /^https?:\/\/t\.me\/s\/(?:varzaghan_khabari|kharvanakhabarlari|asrevarzeghan|avayehvarzeghan|dizmar|varzeghannews|farmandari_varzeghan|enekasvarzeghan|sedayevarzgan)(?:[/?#]|$)/i.test(feedUrl);
+      /^https?:\/\/t\.me\/s\/(?:varzaghan_khabari|kharvanakhabarlari|asrevarzeghan|avayehvarzeghan|dizmar|varzeghannews|farmandari_varzeghan|enekasvarzeghan|sedayevarzgan|azar_anjoman|anajnews|entekhab_ir|s_aharvarzeqan)(?:[/?#]|$)/i.test(feedUrl);
 
     const accepted = trustedTelegramFeed || isOfficialPublisher(item);
     if (!accepted) {
@@ -4078,7 +4085,7 @@ async function fetchAllNews(
     return accepted;
   });
 
-  console.log('🏛️ ناشر رسمی تأییدشده: ' + officialItems.length);
+  console.log('🛡️ ناشر دامنه‌ای یا کانال محلیِ مجاز: ' + officialItems.length);
 
   /*
    * ابتدا نرمال‌سازی
