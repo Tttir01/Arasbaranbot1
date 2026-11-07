@@ -302,6 +302,9 @@ async function formatNews(
     console.log('⚠️ بازنویسی AI در دسترس نبود: ' + error.message);
   }
 
+  // تیتر و جمله‌های تکراری داخل متن پست حذف می‌شوند
+  description = dedupeAgainstTitle(description, finalTitle);
+
   const source = sourceLabel(item.publisherName || item.source || item.sourceName);
   const sourceUrl = /^https?:\/\//i.test(String(item.url || ''))
     ? String(item.url).trim()
@@ -394,3 +397,63 @@ module.exports = {
   formatPersianTime,
   toPersianDigits
 };
+
+
+/* ============================================================
+ * حذف تکرار تیتر و جمله‌های تکراری از متن پست
+ * ============================================================
+ */
+
+function similarityRatio(a, b) {
+  const wordsA = new Set(String(a || '').split(' ').filter(Boolean));
+  const wordsB = new Set(String(b || '').split(' ').filter(Boolean));
+
+  if (!wordsA.size || !wordsB.size) return 0;
+
+  let common = 0;
+  wordsA.forEach(word => {
+    if (wordsB.has(word)) common++;
+  });
+
+  const union = new Set([...wordsA, ...wordsB]).size;
+  return union ? common / union : 0;
+}
+
+function dedupeAgainstTitle(text, title) {
+  const value = String(text || '').trim();
+  if (!value) return '';
+
+  const titleKey = normalizeForSimilarity(title);
+  const sentences = value
+    .split(/(?<=[.!؟…])\s+|\n+/)
+    .map(part => part.trim())
+    .filter(Boolean);
+
+  const kept = [];
+  const seen = [];
+
+  for (const sentence of sentences) {
+    const key = normalizeForSimilarity(sentence);
+    if (!key) continue;
+
+    // جمله‌ای که خودِ تیتر را دوباره می‌گوید
+    if (titleKey && (key === titleKey || (key.includes(titleKey) && key.length <= titleKey.length * 1.4))) {
+      continue;
+    }
+
+    // جمله اول اگر تقریباً همان تیتر باشد
+    if (titleKey && kept.length === 0 && similarityRatio(key, titleKey) >= 0.8) {
+      continue;
+    }
+
+    // جمله تکراری داخل خود متن
+    if (seen.some(previous => previous === key || similarityRatio(previous, key) >= 0.85)) {
+      continue;
+    }
+
+    seen.push(key);
+    kept.push(sentence);
+  }
+
+  return kept.join(' ').trim();
+}
