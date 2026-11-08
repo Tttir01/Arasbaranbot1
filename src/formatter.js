@@ -210,7 +210,7 @@ async function formatNews(
   let description = lightEdit(
     makeSummary(
       item.description || item.content || item.summary || item.text,
-      forPhoto ? 560 : 1000
+      10000
     )
   );
 
@@ -286,6 +286,10 @@ async function formatNews(
     parts.push(description);
   }
 
+  if (sourceUrl) {
+    parts.push(`🔗 منبع: ${sourceUrl}`);
+  }
+
   parts.push(
     `🕐 ${date} - ${time}`
   );
@@ -297,31 +301,6 @@ async function formatNews(
 
   let text =
     parts.join('\n\n').trim();
-
-  if (
-    forPhoto &&
-    text.length > 950
-  ) {
-    text = [
-      `📰 ${finalTitle}`,
-      source,
-      makeSummary(
-        item.description || item.content || item.summary || item.text,
-        420
-      ),
-      `🕐 ${date} - ${time}`,
-      sourceUrl ? '🔗 لینک منبع: ' + sourceUrl : '',
-      CHANNEL_ID
-    ]
-      .filter(Boolean)
-      .join('\n\n');
-
-    if (text.length > 950) {
-      text =
-        text.substring(0, 947) +
-        '…';
-    }
-  }
 
   return text;
 }
