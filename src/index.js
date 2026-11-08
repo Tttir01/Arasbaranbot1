@@ -40,11 +40,40 @@ function rankNews(items) {
   });
 }
 
+function splitTelegramText(value, limit) {
+  const remainingText = String(value || '').trim();
+  const chunks = [];
+  let remaining = remainingText;
+
+  while (remaining.length > limit) {
+    let cut = remaining.lastIndexOf('\n\n', limit);
+    if (cut < Math.floor(limit * 0.55)) cut = remaining.lastIndexOf('\n', limit);
+    if (cut < Math.floor(limit * 0.55)) cut = remaining.lastIndexOf(' ', limit);
+    if (cut < Math.floor(limit * 0.55)) cut = limit;
+    chunks.push(remaining.slice(0, cut).trim());
+    remaining = remaining.slice(cut).trim();
+  }
+  if (remaining) chunks.push(remaining);
+  return chunks;
+}
+
+async function sendTextParts(parts) {
+  for (const part of parts) {
+    await sendMessage(part);
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+}
+
 async function sendNewsItem(item, message) {
   if (item.imageUrl) {
     try {
-      await sendPhoto(item.imageUrl, message);
-      return 'photo';
+      const [caption, ...continuations] = splitTelegramText(message, 950);
+      await sendPhoto(item.imageUrl, caption || '');
+      if (continuations.length) {
+        console.log(`🧵 ادامه خبر در ${continuations.length} پیام جداگانه ارسال می‌شود.`);
+        await sendTextParts(continuations.map((part, index) => `📄 ادامه خبر (${index + 1}/${continuations.length})\n\n${part}`));
+      }
+      return continuations.length ? 'photo+continuation' : 'photo';
     } catch (error) {
       console.log(`⚠️ ارسال تصویر شکست خورد: ${error.message}`);
     }
@@ -52,14 +81,18 @@ async function sendNewsItem(item, message) {
 
   if (item.videoUrl) {
     try {
-      await sendVideo(item.videoUrl, message);
-      return 'video';
+      const [caption, ...continuations] = splitTelegramText(message, 950);
+      await sendVideo(item.videoUrl, caption || '');
+      if (continuations.length) {
+        await sendTextParts(continuations.map((part, index) => `📄 ادامه خبر (${index + 1}/${continuations.length})\n\n${part}`));
+      }
+      return continuations.length ? 'video+continuation' : 'video';
     } catch (error) {
       console.log(`⚠️ ارسال ویدئو شکست خورد: ${error.message}`);
     }
   }
 
-  await sendMessage(message);
+  await sendTextParts(splitTelegramText(message, 3900));
   return 'text';
 }
 
