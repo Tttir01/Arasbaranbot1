@@ -2560,54 +2560,72 @@ async function fetchArticlePage(
   }
 
   /*
-   * متن مقاله
+   * متن کامل مقاله: ابتدا JSON-LD و سپس بدنه‌های رایج خبرگزاری‌ها.
+   * منو، تبلیغات، خبرهای مرتبط و ابزارهای اشتراک‌گذاری حذف می‌شوند.
    */
+  let content = '';
+  const jsonLdBlocks = $('script[type="application/ld+json"]').toArray();
+
+  for (const block of jsonLdBlocks) {
+    try {
+      const parsed = JSON.parse($(block).contents().text());
+      const candidates = Array.isArray(parsed) ? parsed : [parsed];
+      for (const candidate of candidates) {
+        const graph = candidate && Array.isArray(candidate['@graph'])
+          ? candidate['@graph'] : [candidate];
+        for (const entry of graph) {
+          const body = entry && (entry.articleBody || entry.text);
+          if (typeof body === 'string' && body.trim().length > content.length) {
+            content = cleanText(body);
+          }
+        }
+      }
+    } catch (_) {
+      // JSON-LD نامعتبر نادیده گرفته می‌شود.
+    }
+  }
+
   const articleSelectors = [
-    'article',
+    '[itemprop="articleBody"]',
+    'article .article-body',
+    'article .article-content',
     '.article-body',
     '.article-content',
     '.news-content',
     '.news-text',
-    '.content',
+    '.news-detail',
     '.item-text',
-    '.story'
+    '.story',
+    'article',
+    'main'
   ];
 
-  let content = '';
+  for (const selector of articleSelectors) {
+    const node = $(selector).first().clone();
+    if (!node.length) continue;
 
-  for (
-    let i = 0;
-    i < articleSelectors.length;
-    i++
-  ) {
-    const node =
-      $(articleSelectors[i])
-        .first();
+    node.find('script,style,nav,header,footer,aside,form,button,'
+      + '.related,.related-news,.share,.social,.advertisement,.ads,'
+      + '.breadcrumb,.tags,.comments,.comment,.sidebar,.toolbar').remove();
 
-    if (
-      node.length
-    ) {
-      const text =
-        cleanText(
-          node.text()
-        );
+    node.find('a').each(function () {
+      const linkText = cleanText($(this).text());
+      if (!linkText || linkText.length < 3) $(this).remove();
+    });
 
-      if (
-        text.length >
-        content.length
-      ) {
-        content =
-          text;
-      }
-    }
+    const paragraphs = node.find('p').toArray()
+      .map(p => cleanText($(p).text()))
+      .filter(text => text.length > 25);
+
+    const extracted = paragraphs.length >= 2
+      ? paragraphs.join('\n\n')
+      : cleanText(node.text());
+
+    if (extracted.length > content.length) content = extracted;
   }
 
-  if (
-    content.length < 50
-  ) {
-    content =
-      description;
-  }
+  content = removeSourceNoise(content);
+  if (content.length < 50) content = description;
 
   /*
    * تصویر
@@ -2793,6 +2811,35 @@ async function fetchSource(
       ': ' +
       error.message
     );
+  }
+
+  /*
+   * تکمیل متن خبر از صفحه اصلی ناشر:
+   * فقط برای آیتم‌های RSS/HTML با متن کوتاه و لینک وب واقعی.
+   * اگر صفحه در دسترس نباشد، متن موجود بدون حدس حفظ می‌شود.
+   */
+  if (type === 'rss' || type === 'google-news' || type === 'html') {
+    for (const item of items) {
+      const currentText = cleanText(firstNonEmpty(
+        item.content, item.contentSnippet, item.description, item.summary, item.text
+      ));
+      const articleUrl = firstNonEmpty(item.url, item.link);
+      if (currentText.length >= 700 || !/^https?:\/\//i.test(articleUrl)) continue;
+      try {
+        const article = await fetchArticlePage(articleUrl, source, item.title);
+        if (article && article.content && article.content.length > currentText.length) {
+          item.content = article.content;
+          item.description = article.content;
+          item.text = [item.title || article.title, article.content].filter(Boolean).join('\n\n');
+          item.imageUrl = item.imageUrl || article.imageUrl;
+          item.publishedAt = item.publishedAt || article.publishedAt;
+          console.log('   📄 متن کامل‌تر دریافت شد: ' + (item.title || article.title));
+        }
+      } catch (error) {
+        console.log('   ℹ️ متن کامل صفحه دریافت نشد؛ متن فید حفظ شد: ' + error.message);
+      }
+      await sleep(100);
+    }
   }
 
   console.log(
