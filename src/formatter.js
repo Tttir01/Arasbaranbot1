@@ -140,33 +140,9 @@ function makeSummary(
 
   if (!value) return '';
 
-  if (
-    value.length <= maxLength
-  ) {
-    return value;
-  }
-
-  let cut =
-    value.substring(
-      0,
-      maxLength
-    );
-
-  const lastSpace =
-    cut.lastIndexOf(' ');
-
-  if (
-    lastSpace >
-    maxLength * 0.75
-  ) {
-    cut =
-      cut.substring(
-        0,
-        lastSpace
-      );
-  }
-
-  return `${cut}…`;
+  // متن خبر کوتاه نمی‌شود؛ ارسال‌کننده آن را در صورت نیاز
+  // به چند پیام پیوسته تقسیم می‌کند تا هیچ بخش خبری حذف نشود.
+  return value;
 }
 
 function normalizeForSimilarity(text) {
@@ -241,9 +217,7 @@ async function formatNews(
   description = dedupeAgainstTitle(description, finalTitle);
 
   const source = sourceLabel(item.publisherName || item.source || item.sourceName);
-  const sourceUrl = /^https?:\/\//i.test(String(item.url || ''))
-    ? String(item.url).trim()
-    : '';
+  // لینک منبع فقط برای پردازش داخلی است و در پست نمایش داده نمی‌شود.
 
   let publishedAt = null;
 
@@ -274,35 +248,46 @@ async function formatNews(
       timezone
     );
 
+  const fullText = [finalTitle, description].filter(Boolean).join(' ');
+  let area = 'ورزقان و خاروانا';
+  if (/خاروانا|دیزمار|جوشین/.test(fullText) && !/ورزقان|سونگون/.test(fullText)) area = 'خاروانا';
+  else if (/ورزقان|سونگون/.test(fullText) && !/خاروانا|دیزمار|جوشین/.test(fullText)) area = 'ورزقان';
+
+  let category = '';
+  const categoryRules = [
+    [/تصادف|واژگونی|حادثه|آتش.?سوزی|امداد|نجات|زلزله|سیل/, 'حوادث و امداد'],
+    [/مدرسه|دانش.?آموز|معلم|آموزش|دانشگاه/, 'آموزش'],
+    [/معدن|مس سونگون|سونگون|کارخانه|تولید|صنعت/, 'معدن و صنعت'],
+    [/جاده|راه.?سازی|پل|راهداری|حمل.?ونقل/, 'راه و عمران'],
+    [/کشاورز|دامدار|باغدار|جهاد کشاورزی/, 'کشاورزی'],
+    [/بیمارستان|درمان|سلامت|بهداشت|اورژانس/, 'سلامت'],
+    [/ورزش|فوتبال|مسابقه|قهرمان/, 'ورزش'],
+    [/افتتاح|پروژه|عمران|آسفالت|آبرسانی|گازرسانی/, 'عمران و خدمات'],
+    [/محیط.?زیست|حیات.?وحش|جنگل|طبیعت/, 'محیط زیست']
+  ];
+  for (const [pattern, label] of categoryRules) {
+    if (pattern.test(fullText)) { category = label; break; }
+  }
+
   const parts = [
-    `📰 ${finalTitle}`
+    '🔴 ورزقان مدیا | تازه‌ترین خبر منطقه',
+    '',
+    `📰 ${finalTitle}`,
+    '',
+    `📍 ${area}`
   ];
 
-  if (source) {
-    parts.push(source);
-  }
-
-  if (description) {
-    parts.push(description);
-  }
-
-  if (sourceUrl) {
-    parts.push(`🔗 منبع: ${sourceUrl}`);
-  }
+  if (category) parts.push(`🏷️ ${category}`);
+  if (description) parts.push('', description);
 
   parts.push(
-    `🕐 ${date} - ${time}`
+    '',
+    '━━━━━━━━━━━━━━',
+    `🕒 ${date} | ${time}`,
+    `📣 ${CHANNEL_ID}`
   );
 
-
-  parts.push(
-    CHANNEL_ID
-  );
-
-  let text =
-    parts.join('\n\n').trim();
-
-  return text;
+  return parts.join('\\n').trim();
 }
 
 module.exports = {
