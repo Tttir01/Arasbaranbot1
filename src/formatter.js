@@ -111,9 +111,8 @@ function sourceLabel(sourceName) {
     return '';
   }
 
-  // نام منبع در متن پست منتشر نمی‌شود.
-  // منبع فقط در لاگ اجرا و تاریخچه اخبار (data/news-history.json) نگه داشته می‌شود.
-  return '';
+  // نام ناشر به‌صورت متنی نمایش داده می‌شود؛ لینک منبع هرگز در پست درج نمی‌شود.
+  return name;
 }
 
 function makeSummary(
@@ -278,6 +277,7 @@ async function formatNews(
   ];
 
   if (category) parts.push(`🏷️ ${category}`);
+  if (source) parts.push(`🗂️ منبع: ${source}`);
   if (description) parts.push('', description);
 
   parts.push(
