@@ -953,17 +953,32 @@ function isLocalNews(item) {
   if (!item) return false;
   if (hasBlockedContent(item)) return false;
 
-  const text = getNewsSearchText(item);
+  // فقط تیتر و ابتدای متن خبر ملاک جغرافیا هستند؛
+  // نام کانال، امضای تبلیغاتی و اشاره‌های انتهای متن نباید خبر را محلی جلوه دهند.
+  const title = normalizePersian(getTitle(item));
+  const body = normalizePersian(getArticleText(item)).slice(0, 600);
+  const leadText = [title, body].filter(Boolean).join(' ');
 
-  const targetArea = containsAny(
-    text,
-    [].concat(
-      LOCAL_AREAS.varzqan,
-      LOCAL_AREAS.kharvana
-    )
-  );
+  const directLocalTerms = [
+    'ورزقان',
+    'ورزگان',
+    'شهرستان ورزقان',
+    'بخش مرکزی ورزقان',
+    'خاروانا',
+    'بخش خاروانا',
+    'دیزمار',
+    'جوشین'
+  ];
 
-  if (!targetArea) return false;
+  const directLocalMention = containsAny(leadText, directLocalTerms);
+
+  // «سونگون» به‌تنهایی برای پذیرش کافی نیست؛ باید موضوع خبر
+  // مشخصاً به معدن/مجتمع/تولید/کارکنان مس سونگون مربوط باشد.
+  const songunMention =
+    /سونگون/.test(leadText) &&
+    /مس|معدن|مجتمع|کارخانه|کارگر|کارکنان|تولید|کنسانتره|پروژه|توسعه/.test(leadText);
+
+  if (!directLocalMention && !songunMention) return false;
   if (isForeignNews(item)) return false;
 
   return true;
