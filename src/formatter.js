@@ -287,7 +287,7 @@ async function formatNews(
     `📣 ${CHANNEL_ID}`
   );
 
-  return parts.join('\\n').trim();
+  return parts.join('\n').trim();
 }
 
 module.exports = {
