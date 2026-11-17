@@ -202,7 +202,7 @@ jobs:
           require('./src/storage');
 
           console.log('Loading news...');
-          const { isOfficialPublisher } = require('./src/news');
+          const { isOfficialPublisher, isLocalNews } = require('./src/news');
 
           const assert = require('node:assert/strict');
           assert.equal(
@@ -221,6 +221,20 @@ jobs:
             'Google News redirect alone must not count as official publisher'
           );
           console.log('Official publisher allowlist tests: OK');
+
+          const longLocalBody = 'شرح تکمیلی خبر و جزئیات رویداد. '.repeat(35) +
+            ' در روستای جوشین شهرستان ورزقان عملیات اجرایی آغاز شد.';
+          assert.equal(
+            isLocalNews({ title: 'آغاز عملیات اجرایی پروژه عمرانی', content: longLocalBody }),
+            true,
+            'local place mention later in article body should be detected'
+          );
+          assert.equal(
+            isLocalNews({ title: 'گزارش عمومی بازار کشور', content: 'قیمت‌ها در بازار تهران بررسی شد.' }),
+            false,
+            'national news without a local place mention must be rejected'
+          );
+          console.log('Local-area detection tests: OK');
 
           console.log('Loading telegram...');
           require('./src/telegram');
