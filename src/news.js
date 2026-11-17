@@ -953,11 +953,12 @@ function isLocalNews(item) {
   if (!item) return false;
   if (hasBlockedContent(item)) return false;
 
-  // فقط تیتر و ابتدای متن خبر ملاک جغرافیا هستند؛
-  // نام کانال، امضای تبلیغاتی و اشاره‌های انتهای متن نباید خبر را محلی جلوه دهند.
+  // متن پاک‌سازی‌شده خبر تا ۲۵۰۰ نویسه بررسی می‌شود؛
+  // این دامنه برای خبرهایی که نام روستا/منطقه در ادامه لید آمده کافی‌تر است،
+  // اما از بررسی امضاهای انتهایی و تبلیغات جلوگیری می‌کند.
   const title = normalizePersian(getTitle(item));
-  const body = normalizePersian(getArticleText(item)).slice(0, 600);
-  const leadText = [title, body].filter(Boolean).join(' ');
+  const body = normalizePersian(getArticleText(item)).slice(0, 2500);
+  const leadText = [title, body, normalizePersian(item.location || '')].filter(Boolean).join(' ');
 
   const directLocalTerms = [
     'ورزقان',
@@ -2113,10 +2114,23 @@ async function fetchRSSSource(
       source.url
     );
 
-    const feed =
-      await parser.parseURL(
-        source.url
-      );
+    let feed;
+    const maxAttempts = 3;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        feed = await parser.parseURL(source.url);
+        break;
+      } catch (error) {
+        const status = Number(error && (error.statusCode || error.status));
+        const retryable = status === 429 || status >= 500 ||
+          /429|rate.?limit|too many requests|temporar|timeout|econnreset|socket hang up/i.test(String(error && error.message || ''));
+        if (!retryable || attempt === maxAttempts) throw error;
+        const delayMs = attempt * 2000;
+        console.log('   ⏳ خطای موقت RSS (' + (status || error.code || 'network') +
+          ')؛ تلاش مجدد ' + (attempt + 1) + '/' + maxAttempts + ' پس از ' + delayMs + 'ms');
+        await sleep(delayMs);
+      }
+    }
 
     const feedItems = feed.items || [];
 
@@ -4222,19 +4236,28 @@ async function fetchAllNews(
   /*
    * محلی
    */
-  const local =
-    recent.filter(
-      function (item) {
-        return isLocalNews(
-          item
-        );
-      }
-    );
+  const local = [];
+  const localRejects = { noAreaMention: 0, blocked: 0, foreign: 0 };
+  for (const item of recent) {
+    if (hasBlockedContent(item)) {
+      localRejects.blocked++;
+      continue;
+    }
+    if (isForeignNews(item)) {
+      localRejects.foreign++;
+      continue;
+    }
+    if (isLocalNews(item)) {
+      local.push(item);
+    } else {
+      localRejects.noAreaMention++;
+    }
+  }
 
-  console.log(
-    '📍 محلی: ' +
-    local.length
-  );
+  console.log('📍 محلی: ' + local.length);
+  console.log('🔎 علت رد فیلتر محلی: بدون نشانه مکانی=' +
+    localRejects.noAreaMention + ' | محتوای ممنوع=' +
+    localRejects.blocked + ' | خبر خارجی=' + localRejects.foreign);
 
   /*
    * فیلتر نهایی
