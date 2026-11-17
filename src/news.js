@@ -2741,12 +2741,9 @@ async function fetchSource(
   );
 
   let items = [];
+  const type = String(source.type || '').toLowerCase();
 
   try {
-    const type =
-      String(
-        source.type || ''
-      ).toLowerCase();
 
     /*
      * Google News
